@@ -1,6 +1,7 @@
 import os
-from setuptools import find_packages, setup
 import subprocess
+
+from setuptools import find_packages, setup
 
 NAME = "multibeast"
 __version__ = "0.0.1"
@@ -62,11 +63,7 @@ if __name__ == "__main__":
     version = __version__
 
     try:
-        sha = (
-            subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=cwd)
-            .decode("ascii")
-            .strip()
-        )
+        sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=cwd).decode("ascii").strip()
     except subprocess.CalledProcessError:
         pass
 
@@ -83,7 +80,7 @@ if __name__ == "__main__":
         name=NAME,
         version=version,
         description="",
-        author='etaoxing',
+        author="etaoxing",
         url=URL,
         # download_url=f'{URL}/archive/{__version__}.tar.gz',
         license="MIT",
