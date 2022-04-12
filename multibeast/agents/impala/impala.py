@@ -236,9 +236,14 @@ def main(cfg):
 
     logging.info("train_id: %s", train_id)
 
-    envs = moolib.EnvPool(
-        lambda: environment.create_env(FLAGS),
-        num_processes=FLAGS.num_actor_cpus,
+    if FLAGS.use_moolib_envpool:
+        EnvPoolCls = moolib.EnvPool  # only supports discrete action space curently
+    else:
+        EnvPoolCls = EnvPool
+
+    envs = EnvPoolCls(
+        lambda: create_env(FLAGS),
+        num_processes=FLAGS.num_actor_processes,
         batch_size=FLAGS.actor_batch_size,
         num_batches=FLAGS.num_actor_batches,
     )
