@@ -6,11 +6,21 @@ from moolib.examples.common import RunningMeanStd
 
 
 class EnvBatchState:
-    def __init__(self, flags, model):
+    r"""
+    Also tracks ["success", "progress"] at the end of the episode, if those keys are in the info dict.
+
+    Args:
+        flags:
+        model:
+        zero_action: a tensor of zeros with shape [`flags.actor_batch_size`, `env.action_space.action_dim`]
+        info_custom_keys: a list of keys to track stats for from the info dict.
+    """
+
+    def __init__(self, flags, model, zero_action, with_scaled_reward: bool = False, info_keys_custom: list = None):
         batch_size = flags.actor_batch_size
         device = flags.device
         self.batch_size = batch_size
-        self.prev_action = torch.zeros(batch_size).long().to(device)
+        self.prev_action = zero_action.clone().to(device)
         self.future = None
         self.core_state = model.initial_state(batch_size=batch_size)
         self.core_state = tuple(s.to(device) for s in self.core_state)
@@ -19,23 +29,33 @@ class EnvBatchState:
         self.running_reward = torch.zeros(batch_size)
         self.step_count = torch.zeros(batch_size)
 
-        self.discounting = flags.discounting
-        self.weighted_returns = torch.zeros(batch_size)
-        self.weighted_returns_rms = RunningMeanStd()
+        self.with_scaled_reward = with_scaled_reward
+        if with_scaled_reward:
+            self.discounting = flags.discounting
+            self.weighted_returns = torch.zeros(batch_size)
+            self.weighted_returns_rms = RunningMeanStd()
+
+        self.info_keys_custom = info_keys_custom
 
         self.time_batcher = moolib.Batcher(flags.unroll_length + 1, device)
 
     def update(self, env_outputs, action, stats):
         self.prev_action = action
         self.running_reward += env_outputs["reward"]
-        self.weighted_returns *= self.discounting
-        self.weighted_returns += env_outputs["reward"]
-        self.weighted_returns_rms.update(self.weighted_returns)
 
-        self.scaled_reward = env_outputs["reward"] / torch.sqrt(self.weighted_returns_rms.var + 1e-8)
+        if self.with_scaled_reward:
+            self.weighted_returns *= self.discounting
+            self.weighted_returns += env_outputs["reward"]
+            self.weighted_returns_rms.update(self.weighted_returns)
+
+            self.scaled_reward = env_outputs["reward"] / torch.sqrt(self.weighted_returns_rms.var + 1e-8)
 
         self.step_count += 1
 
+        info = env_outputs["info"]
+
+        # TODO: https://arxiv.org/abs/1712.00378
+        # timeout = info["timeout"]
         done = env_outputs["done"]
 
         episode_return = self.running_reward * done
@@ -54,5 +74,6 @@ class EnvBatchState:
         not_done = ~done
 
         self.running_reward *= not_done
-        self.weighted_returns *= not_done
         self.step_count *= not_done
+        if self.with_scaled_reward:
+            self.weighted_returns *= not_done

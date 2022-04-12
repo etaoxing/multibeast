@@ -19,11 +19,12 @@ import moolib
 import omegaconf
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from moolib.examples import common
 from moolib.examples.common import nest, record, vtrace
+from tinyspace import sample_from_space
 
-from ..atari import environment, models
+from multibeast.envpool import EnvBatchState, EnvPool
+
 
 
 @dataclasses.dataclass
@@ -248,7 +249,16 @@ def main(cfg):
         num_batches=FLAGS.num_actor_batches,
     )
 
-    print("EnvPool started")
+    logging.info(f"EnvPool started: {envs}")
+
+    dummy_env = create_env(FLAGS, dummy_env=True)
+    observation_space = dummy_env.observation_space
+    action_space = dummy_env.action_space
+    info_keys_custom = getattr(dummy_env, "info_keys_custom", None)
+    dummy_env.close()
+    del dummy_env
+    logging.info(f"observation_space: {observation_space}")
+    logging.info(f"action_space: {action_space}")
 
     model = models.create_model(FLAGS)
     optimizer = create_optimizer(model)
@@ -277,7 +287,18 @@ def main(cfg):
             notes=FLAGS.notes,
         )
 
-    env_states = [common.EnvBatchState(FLAGS, model) for _ in range(FLAGS.num_actor_batches)]
+    zero_action = sample_from_space(action_space, batch_size=FLAGS.actor_batch_size, to_torch_tensor=True)
+    if action_space["cls"] == "discrete":
+        zero_action = zero_action.flatten()
+    env_states = [
+        EnvBatchState(
+            FLAGS,
+            model,
+            zero_action,
+            info_keys_custom=info_keys_custom,
+        )
+        for _ in range(FLAGS.num_actor_batches)
+    ]
 
     rpc = moolib.Rpc()
     rpc.set_name(FLAGS.local_name)
