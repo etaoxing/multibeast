@@ -23,8 +23,10 @@ from moolib.examples import common
 from moolib.examples.common import nest, record, vtrace
 from tinyspace import sample_from_space
 
+from multibeast.builder import FeatureExtractorRegistry, MakeEnvRegistry
 from multibeast.envpool import EnvBatchState, EnvPool
 
+from .impalanet import ImpalaNet
 
 
 @dataclasses.dataclass
@@ -59,6 +61,24 @@ class LearnerState:
             if k in self.global_stats:
                 self.global_stats[k] = type(self.global_stats[k])(**v)
 
+
+def create_model(observation_space, action_space):
+    if FLAGS.feature_extractor:
+        feature_extractor = FeatureExtractorRegistry.build(
+            observation_space,
+            action_space,
+            FLAGS.feature_extractor,
+        )
+    else:
+        feature_extractor = None
+
+    model = ImpalaNet(
+        observation_space,
+        action_space,
+        feature_extractor=feature_extractor,
+        use_lstm=FLAGS.use_lstm,
+    )
+    return model
 
 def compute_baseline_loss(advantages):
     return 0.5 * torch.mean(advantages**2)
@@ -247,8 +267,10 @@ def main(cfg):
     else:
         EnvPoolCls = EnvPool
 
+    create_env_fn = MakeEnvRegistry.build(FLAGS.make_env_name, FLAGS.env)
+
     envs = EnvPoolCls(
-        lambda: create_env(FLAGS),
+        create_env_fn,
         num_processes=FLAGS.num_actor_processes,
         batch_size=FLAGS.actor_batch_size,
         num_batches=FLAGS.num_actor_batches,
@@ -256,7 +278,7 @@ def main(cfg):
 
     logging.info(f"EnvPool started: {envs}")
 
-    dummy_env = create_env(FLAGS, dummy_env=True)
+    dummy_env = create_env_fn(dummy_env=True)
     observation_space = dummy_env.observation_space
     action_space = dummy_env.action_space
     info_keys_custom = getattr(dummy_env, "info_keys_custom", None)
@@ -265,7 +287,8 @@ def main(cfg):
     logging.info(f"observation_space: {observation_space}")
     logging.info(f"action_space: {action_space}")
 
-    model = models.create_model(FLAGS)
+    model = create_model(observation_space, action_space)
+    model.to(device=FLAGS.device)
     optimizer = create_optimizer(model)
     scheduler = create_scheduler(optimizer)
     learner_state = LearnerState(model, optimizer, scheduler)

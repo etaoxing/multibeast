@@ -14,7 +14,11 @@ install_requires = [
     "hydra-submitit-launcher>=1.1.1",
     "wandb>=0.10.31",
     "pyyaml",
-    "tinyspace@git+ssh://git@github.com/etaoxing/tinyspace.git",
+]
+
+install_requires += [
+    "tinyspace@git+http://github.com/etaoxing/tinyspace#egg=tinyspace",
+    "tabulate",
 ]
 
 extras_deps = {
