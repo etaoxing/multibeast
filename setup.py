@@ -3,8 +3,8 @@ from setuptools import find_packages, setup
 import subprocess
 
 NAME = "multibeast"
-__version__ = '0.0.1'
-URL = 'https://github.com/etaoxing/multibeast'
+__version__ = "0.0.1"
+URL = "https://github.com/etaoxing/multibeast"
 
 install_requires = [
     "torch>=1.9.1",
