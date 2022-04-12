@@ -21,14 +21,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import wandb
-
-from moolib.examples.common import nest
-from moolib.examples.common import record
-from moolib.examples.common import vtrace
 from moolib.examples import common
+from moolib.examples.common import nest, record, vtrace
 
-from ..atari import environment
-from ..atari import models
+from ..atari import environment, models
 
 
 @dataclasses.dataclass
@@ -97,9 +93,7 @@ def create_optimizer(model):
 
 def create_scheduler(optimizer):
     factor = FLAGS.unroll_length * FLAGS.virtual_batch_size / FLAGS.total_steps
-    scheduler = torch.optim.lr_scheduler.LambdaLR(
-        optimizer, lambda epoch: max(1 - epoch * factor, 0)
-    )
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda epoch: max(1 - epoch * factor, 0))
     return scheduler
 
 
@@ -140,17 +134,13 @@ def compute_gradients(data, learner_state, stats):
         bootstrap_value=bootstrap_value,
     )
 
-    entropy_loss = FLAGS.entropy_cost * compute_entropy_loss(
-        learner_outputs["policy_logits"]
-    )
+    entropy_loss = FLAGS.entropy_cost * compute_entropy_loss(learner_outputs["policy_logits"])
     pg_loss = compute_policy_gradient_loss(
         learner_outputs["policy_logits"],
         actor_outputs["action"],
         vtrace_returns.pg_advantages,
     )
-    baseline_loss = FLAGS.baseline_cost * compute_baseline_loss(
-        vtrace_returns.vs - learner_outputs["baseline"]
-    )
+    baseline_loss = FLAGS.baseline_cost * compute_baseline_loss(vtrace_returns.vs - learner_outputs["baseline"])
     total_loss = entropy_loss + pg_loss + baseline_loss
 
     total_loss.backward()
@@ -159,9 +149,7 @@ def compute_gradients(data, learner_state, stats):
 
 
 def step_optimizer(learner_state, stats):
-    unclipped_grad_norm = nn.utils.clip_grad_norm_(
-        learner_state.model.parameters(), FLAGS.grad_norm_clipping
-    )
+    unclipped_grad_norm = nn.utils.clip_grad_norm_(learner_state.model.parameters(), FLAGS.grad_norm_clipping)
     learner_state.optimizer.step()
     learner_state.scheduler.step()
     learner_state.model_version += 1
@@ -231,9 +219,7 @@ def main(cfg):
 
     logging.info("flags:\n%s\n", pprint.pformat(dict(FLAGS)))
 
-    if record.symlink_path(
-        FLAGS.savedir, os.path.join(hydra.utils.get_original_cwd(), "latest")
-    ):
+    if record.symlink_path(FLAGS.savedir, os.path.join(hydra.utils.get_original_cwd(), "latest")):
         logging.info("savedir: %s (symlinked as 'latest')", FLAGS.savedir)
     else:
         logging.info("savedir: %s", FLAGS.savedir)
@@ -278,9 +264,7 @@ def main(cfg):
             name=FLAGS.local_name,
         )
 
-    env_states = [
-        common.EnvBatchState(FLAGS, model) for _ in range(FLAGS.num_actor_batches)
-    ]
+    env_states = [common.EnvBatchState(FLAGS, model) for _ in range(FLAGS.num_actor_batches)]
 
     rpc = moolib.Rpc()
     rpc.set_name(FLAGS.local_name)
@@ -324,9 +308,7 @@ def main(cfg):
         accumulator.set_model_version(learner_state.model_version)
         logging.info("loaded stats %s", learner_state.global_stats)
 
-    global_stats_accumulator = common.GlobalStatsAccumulator(
-        rpc_group, learner_state.global_stats
-    )
+    global_stats_accumulator = common.GlobalStatsAccumulator(rpc_group, learner_state.global_stats)
 
     terminate = False
     previous_signal_handler = {}
@@ -343,12 +325,8 @@ def main(cfg):
             previous_signal_handler[signum] = None
             signal.signal(signum, previous_handler)
 
-    previous_signal_handler[signal.SIGTERM] = signal.signal(
-        signal.SIGTERM, signal_handler
-    )
-    previous_signal_handler[signal.SIGINT] = signal.signal(
-        signal.SIGINT, signal_handler
-    )
+    previous_signal_handler[signal.SIGTERM] = signal.signal(signal.SIGTERM, signal_handler)
+    previous_signal_handler[signal.SIGINT] = signal.signal(signal.SIGINT, signal_handler)
 
     if torch.backends.cudnn.is_available():
         logging.info("Optimising CuDNN kernels")
@@ -403,9 +381,7 @@ def main(cfg):
                     learner_state.model_version,
                 )
             )
-            prev_global_env_train_steps = learner_state.global_stats[
-                "env_train_steps"
-            ].result()
+            prev_global_env_train_steps = learner_state.global_stats["env_train_steps"].result()
 
             if warm_up_time > 0:
                 logging.info("Warming up for %g seconds", warm_up_time)
@@ -425,9 +401,7 @@ def main(cfg):
             global_stats_accumulator.reset()
 
             prev_env_train_steps = calculate_sps(stats, delta, prev_env_train_steps)
-            prev_global_env_train_steps = calculate_sps(
-                learner_state.global_stats, delta, prev_global_env_train_steps
-            )
+            prev_global_env_train_steps = calculate_sps(learner_state.global_stats, delta, prev_global_env_train_steps)
 
             steps = learner_state.global_stats["env_train_steps"].result()
 
@@ -435,32 +409,20 @@ def main(cfg):
             log(learner_state.global_stats, step=steps, is_global=True)
 
             if warm_up_time > 0:
-                logging.info(
-                    "Warming up up for an additional %g seconds", round(warm_up_time)
-                )
+                logging.info("Warming up up for an additional %g seconds", round(warm_up_time))
 
         if is_leader:
             if not was_leader:
-                leader_filename = os.path.join(
-                    FLAGS.savedir, "leader-%03d" % learner_state.num_previous_leaders
-                )
+                leader_filename = os.path.join(FLAGS.savedir, "leader-%03d" % learner_state.num_previous_leaders)
                 record.symlink_path(FLAGS.localdir, leader_filename)
-                logging.info(
-                    "Created symlink %s -> %s", leader_filename, FLAGS.localdir
-                )
+                logging.info("Created symlink %s -> %s", leader_filename, FLAGS.localdir)
                 learner_state.num_previous_leaders += 1
             if not was_leader and not os.path.exists(checkpoint_path):
                 logging.info("Training a new model from scratch.")
-            if (
-                learner_state.train_time - learner_state.last_checkpoint
-                >= FLAGS.checkpoint_interval
-            ):
+            if learner_state.train_time - learner_state.last_checkpoint >= FLAGS.checkpoint_interval:
                 learner_state.last_checkpoint = learner_state.train_time
                 save_checkpoint(checkpoint_path, learner_state)
-            if (
-                learner_state.train_time - learner_state.last_checkpoint_history
-                >= FLAGS.checkpoint_history_interval
-            ):
+            if learner_state.train_time - learner_state.last_checkpoint_history >= FLAGS.checkpoint_history_interval:
                 learner_state.last_checkpoint_history = learner_state.train_time
                 save_checkpoint(
                     os.path.join(
@@ -492,9 +454,7 @@ def main(cfg):
                 env_state.future = envs.step(cur_index, env_state.prev_action)
             cpu_env_outputs = env_state.future.result()
 
-            env_outputs = nest.map(
-                lambda t: t.to(FLAGS.device, copy=True), cpu_env_outputs
-            )
+            env_outputs = nest.map(lambda t: t.to(FLAGS.device, copy=True), cpu_env_outputs)
 
             env_outputs["prev_action"] = env_state.prev_action
             prev_core_state = env_state.core_state

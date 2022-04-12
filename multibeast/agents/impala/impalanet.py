@@ -2,9 +2,8 @@
 
 # Copyright (c) Facebook, Inc. and its affiliates.
 import torch
-from torch import nn
+import torch.nn as nn
 import torch.nn.functional as F
-
 from moolib.examples.common import nest
 
 
@@ -82,10 +81,7 @@ class Net(nn.Module):
     def initial_state(self, batch_size=1):
         if not self.use_lstm:
             return tuple()
-        return tuple(
-            torch.zeros(self.core.num_layers, batch_size, self.core.hidden_size)
-            for _ in range(2)
-        )
+        return tuple(torch.zeros(self.core.num_layers, batch_size, self.core.hidden_size) for _ in range(2))
 
     def forward(self, inputs, core_state=None):
         reward = inputs["reward"]
@@ -109,9 +105,7 @@ class Net(nn.Module):
         x = x.view(T * B, -1)
         x = F.relu(self.fc(x))
 
-        one_hot_last_action = F.one_hot(
-            inputs["prev_action"].view(T * B), self.num_actions
-        ).float()
+        one_hot_last_action = F.one_hot(inputs["prev_action"].view(T * B), self.num_actions).float()
         clipped_reward = torch.clamp(reward, -1, 1).view(T * B, 1)
         core_input = torch.cat([x, clipped_reward, one_hot_last_action], dim=-1)
 
