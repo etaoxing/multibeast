@@ -65,6 +65,15 @@ class EnvBatchState:
         if episodes_done > 0:
             stats["mean_episode_return"] += episode_return.sum().item() / episodes_done
             stats["mean_episode_step"] += episode_step.sum().item() / episodes_done
+            if "success" in info.keys():
+                stats["end_episode_success"] += (info["success"] * done).sum().item() / episodes_done
+            if "progress" in info.keys():
+                stats["end_episode_progress"] += (info["progress"] * done).sum().item() / episodes_done
+
+            if self.info_keys_custom:
+                for k in self.info_keys_custom:
+                    stats[f"end_{k}"] += (info[k] * done).sum().item() / episodes_done
+
         stats["steps_done"] += done.numel()
         stats["episodes_done"] += episodes_done
 

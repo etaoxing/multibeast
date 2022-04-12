@@ -149,6 +149,11 @@ def compute_gradients(data, learner_state, stats):
 
     stats["env_train_steps"] += FLAGS.unroll_length * FLAGS.batch_size
 
+    stats["entropy_loss"] += entropy_loss.item()
+    stats["pg_loss"] += pg_loss.item()
+    stats["baseline_loss"] += baseline_loss.item()
+    stats["total_loss"] += total_loss.item()
+
 
 def step_optimizer(learner_state, stats):
     unclipped_grad_norm = nn.utils.clip_grad_norm_(learner_state.model.parameters(), FLAGS.grad_norm_clipping)
@@ -317,21 +322,33 @@ def main(cfg):
     learn_batcher = moolib.Batcher(FLAGS.batch_size, FLAGS.device, dim=1)
 
     stats = {
-        "mean_episode_return": common.StatMean(),
-        "mean_episode_step": common.StatMean(),
         "SPS": common.StatMean(),
         "env_act_steps": common.StatSum(),
         "env_train_steps": common.StatSum(),
         "optimizer_steps": common.StatSum(),
-        "running_reward": common.StatMean(),
-        "running_step": common.StatMean(),
         "steps_done": common.StatSum(),
         "episodes_done": common.StatSum(),
+        #
+        "mean_episode_return": common.StatMean(),
+        "mean_episode_step": common.StatMean(),
+        "running_reward": common.StatMean(),
+        "running_step": common.StatMean(),
+        "end_episode_success": common.StatMean(),
+        "end_episode_progress": common.StatMean(),
+        #
         "unclipped_grad_norm": common.StatMean(),
         "model_version": common.StatSum(),
         "virtual_batch_size": common.StatMean(),
         "num_gradients": common.StatMean(),
+        #
+        "entropy_loss": common.StatMean(),
+        "pg_loss": common.StatMean(),
+        "baseline_loss": common.StatMean(),
+        "total_loss": common.StatMean(),
     }
+    if info_keys_custom is not None:
+        for k in info_keys_custom:
+            stats[f"end_{k}"] = common.StatMean()
     learner_state.global_stats = copy.deepcopy(stats)
 
     checkpoint_path = os.path.join(FLAGS.savedir, "checkpoint.tar")
