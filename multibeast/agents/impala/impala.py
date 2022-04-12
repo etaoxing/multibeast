@@ -20,7 +20,6 @@ import omegaconf
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import wandb
 from moolib.examples import common
 from moolib.examples.common import nest, record, vtrace
 
@@ -168,11 +167,13 @@ def log(stats, step, is_global=False):
         stats_values[prefix + k] = v.result()
         v.reset()
 
-    logging.info(stats_values)
+    logging.info(f"\n{pprint.pformat(stats_values)}")
     if not is_global:
         record.log_to_file(**stats_values)
 
     if FLAGS.wandb:
+        import wandb
+
         wandb.log(stats_values, step=step)
 
 
@@ -259,12 +260,16 @@ def main(cfg):
     )
 
     if FLAGS.wandb:
+        import wandb
+
         wandb.init(
             project=str(FLAGS.project),
             config=omegaconf.OmegaConf.to_container(FLAGS),
             group=FLAGS.group,
             entity=FLAGS.entity,
             name=FLAGS.local_name,
+            tags=FLAGS.tags,
+            notes=FLAGS.notes,
         )
 
     env_states = [common.EnvBatchState(FLAGS, model) for _ in range(FLAGS.num_actor_batches)]
