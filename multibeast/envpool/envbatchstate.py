@@ -1,8 +1,7 @@
 # modified from https://github.com/facebookresearch/moolib/blob/e8b2de7ac5df3a9b3ee2548a33f61100a95152ef/examples/common/__init__.py#L154
 
-import torch
-
 import moolib
+import torch
 from moolib.examples.common import RunningMeanStd
 
 
@@ -33,9 +32,7 @@ class EnvBatchState:
         self.weighted_returns += env_outputs["reward"]
         self.weighted_returns_rms.update(self.weighted_returns)
 
-        self.scaled_reward = env_outputs["reward"] / torch.sqrt(
-            self.weighted_returns_rms.var + 1e-8
-        )
+        self.scaled_reward = env_outputs["reward"] / torch.sqrt(self.weighted_returns_rms.var + 1e-8)
 
         self.step_count += 1
 
