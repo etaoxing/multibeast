@@ -112,6 +112,8 @@ def compute_gradients(data, learner_state, stats):
     bootstrap_value = learner_outputs["baseline"][-1]
 
     # Move from env_outputs[t] -> action[t] to action[t] -> env_outputs[t].
+    # seed_rl comment: At this point, we have unroll length + 1 steps. The last step is only used
+    # as bootstrap value, so it's removed.
     learner_outputs = nest.map(lambda t: t[:-1], learner_outputs)
     env_outputs = nest.map(lambda t: t[1:], env_outputs)
     actor_outputs = nest.map(lambda t: t[:-1], actor_outputs)
@@ -195,9 +197,10 @@ def load_checkpoint(checkpoint_path, learner_state):
     learner_state.load(checkpoint["learner_state"])
 
 
-def calculate_sps(stats, delta, prev_steps):
+def calculate_sps(stats, delta, prev_steps, is_global=False):
     env_train_steps = stats["env_train_steps"].result()
-    logging.info("calculate_sps %g steps in %g", env_train_steps - prev_steps, delta)
+    prefix = "global/" if is_global else "local/"
+    logging.info("%s calculate_sps %g steps in %g seconds", prefix, env_train_steps - prev_steps, delta)
     stats["SPS"] += (env_train_steps - prev_steps) / delta
     return env_train_steps
 
@@ -392,6 +395,8 @@ def main(cfg):
         learner_state.train_time += now - prev_now
         if now - last_reduce_stats >= 2:
             last_reduce_stats = now
+            # NOTE: If getting "TypeError: unsupported operand type(s) for -: 'float' and 'StatMean'"
+            # then probably assigning with `stats["key"] = value`. Use `stats["key"] += value` instead.
             global_stats_accumulator.reduce(stats)
         if now - last_log >= FLAGS.log_interval:
             delta = now - last_log
@@ -400,8 +405,10 @@ def main(cfg):
             global_stats_accumulator.reduce(stats)
             global_stats_accumulator.reset()
 
-            prev_env_train_steps = calculate_sps(stats, delta, prev_env_train_steps)
-            prev_global_env_train_steps = calculate_sps(learner_state.global_stats, delta, prev_global_env_train_steps)
+            prev_env_train_steps = calculate_sps(stats, delta, prev_env_train_steps, is_global=False)
+            prev_global_env_train_steps = calculate_sps(
+                learner_state.global_stats, delta, prev_global_env_train_steps, is_global=True
+            )
 
             steps = learner_state.global_stats["env_train_steps"].result()
 
@@ -450,7 +457,7 @@ def main(cfg):
             next_env_index = (next_env_index + 1) % FLAGS.num_actor_batches
 
             env_state = env_states[cur_index]
-            if env_state.future is None:
+            if env_state.future is None:  # need to initialize
                 env_state.future = envs.step(cur_index, env_state.prev_action)
             cpu_env_outputs = env_state.future.result()
 
@@ -496,4 +503,8 @@ def main(cfg):
 
 
 if __name__ == "__main__":
+    # moolib.set_log_level("debug")
     main()
+
+# see https://github.com/facebookresearch/moolib/tree/main/examples#fully-fledged-vtrace-agent
+# for usage
