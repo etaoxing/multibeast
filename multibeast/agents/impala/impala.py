@@ -182,6 +182,10 @@ def compute_gradients(data, learner_state, stats):
     baseline_advantages = vtrace_returns.vs - learner_outputs["baseline"]
     baseline_loss = FLAGS.baseline_cost * (0.5 * torch.mean(baseline_advantages**2))
 
+    # KL(old_policy|new_policy) loss
+    kl = behavior_action_log_probs - target_action_log_probs
+    kl_loss = FLAGS.get("kl_cost", 0.0) * torch.mean(kl)
+
     # from .losses import compute_baseline_loss, compute_entropy_loss, compute_policy_gradient_loss
     #
     # vtrace_returns = vtrace.from_logits(
@@ -201,7 +205,7 @@ def compute_gradients(data, learner_state, stats):
     # )
     # baseline_loss = FLAGS.baseline_cost * compute_baseline_loss(vtrace_returns.vs - learner_outputs["baseline"])
 
-    total_loss = entropy_loss + pg_loss + baseline_loss
+    total_loss = entropy_loss + pg_loss + baseline_loss + kl_loss
     total_loss.backward()
 
     stats["env_train_steps"] += FLAGS.unroll_length * FLAGS.batch_size
@@ -209,6 +213,7 @@ def compute_gradients(data, learner_state, stats):
     stats["entropy_loss"] += entropy_loss.item()
     stats["pg_loss"] += pg_loss.item()
     stats["baseline_loss"] += baseline_loss.item()
+    stats["kl_loss"] += kl_loss.item()
     stats["total_loss"] += total_loss.item()
 
 
@@ -407,6 +412,7 @@ def run(cfg: omegaconf.DictConfig):
         "entropy_loss": common.StatMean(),
         "pg_loss": common.StatMean(),
         "baseline_loss": common.StatMean(),
+        "kl_loss": common.StatMean(),
         "total_loss": common.StatMean(),
     }
     if info_keys_custom is not None:
