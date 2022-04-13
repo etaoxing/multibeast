@@ -2,13 +2,23 @@ import numpy as np
 
 
 class MockEnv:
-    def __init__(self, action_space_cls):
-        self._observation_space = dict(
-            shape=(3, 64, 64),
-            low=0,
-            high=255,
-            dtype=np.uint8,
-        )
+    def __init__(self, obs_space_type="rgb", action_space_cls="discrete"):
+        if obs_space_type == "rgb":
+            self._observation_space = dict(
+                shape=(3, 64, 64),
+                low=0,
+                high=255,
+                dtype=np.uint8,
+            )
+        elif obs_space_type == "1d":
+            self._observation_space = dict(
+                shape=(100,),
+                low=-np.inf,
+                high=np.inf,
+                dtype=np.float32,
+            )
+        else:
+            raise ValueError
 
         if action_space_cls == "discrete":
             action_space = dict(
