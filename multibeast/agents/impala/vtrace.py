@@ -46,6 +46,7 @@ def from_importance_weights(
     bootstrap_value,
     clip_rho_threshold=1.0,
     clip_pg_rho_threshold=1.0,
+    lambda_=1.0,
 ):
     r"""V-trace from log importance weights.
 
@@ -80,6 +81,8 @@ def from_importance_weights(
       clip_pg_rho_threshold: A scalar float32 tensor with the clipping threshold
         on rho_s in \rho_s \delta log \pi(a|x) (r + \gamma v_{s+1} - V(x_s)). If
         None, no clipping is applied.
+      lambda_: Mix between 1-step (lambda_=0) and n-step (lambda_=1). See Remark 2
+        in paper. Defaults to lambda_=1.
       name: The name scope that all V-trace operations will be created in.
 
     Returns:
@@ -96,6 +99,8 @@ def from_importance_weights(
         clipped_rhos = rhos
 
     cs = torch.clamp(rhos, max=1.0)
+    if lambda_ is not None:
+      cs *= lambda_
     # Append bootstrapped value to get [v1, ..., v_t+1]
     values_t_plus_1 = torch.cat([values[1:], torch.unsqueeze(bootstrap_value, 0)], dim=0)
     deltas = clipped_rhos * (rewards + discounts * values_t_plus_1 - values)
