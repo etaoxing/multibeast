@@ -23,7 +23,7 @@ from moolib.examples import common
 from moolib.examples.common import nest, record, vtrace
 from tinyspace import sample_from_space
 
-from multibeast.builder import FeatureExtractorRegistry, MakeEnvRegistry
+from multibeast.builder import __FeatureExtractor__, __MakeEnv__
 from multibeast.envpool import EnvBatchState, EnvPool
 
 from .impalanet import ImpalaNet
@@ -64,10 +64,10 @@ class LearnerState:
 
 def create_model(observation_space, action_space):
     if FLAGS.feature_extractor:
-        feature_extractor = FeatureExtractorRegistry.build(
+        feature_extractor = __FeatureExtractor__.build(
+            FLAGS.feature_extractor,
             observation_space,
             action_space,
-            FLAGS.feature_extractor,
         )
     else:
         feature_extractor = None
@@ -267,7 +267,7 @@ def main(cfg):
     else:
         EnvPoolCls = EnvPool
 
-    create_env_fn = MakeEnvRegistry.build(FLAGS.make_env_name, FLAGS.env)
+    create_env_fn = __MakeEnv__.build(FLAGS.make_env_name, FLAGS.env)
 
     envs = EnvPoolCls(
         create_env_fn,
