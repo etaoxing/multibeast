@@ -11,7 +11,7 @@ def parse_params(params):
     return c, params
 
 
-def build_make_env(make_env_name, make_env_kwargs) -> Callable:
+def build_make_env(make_env_name, make_env_params) -> Callable:
     r"""This function gets a function in the registry, which can be called to make an environment.
     Example:
         ```python
@@ -25,7 +25,7 @@ def build_make_env(make_env_name, make_env_kwargs) -> Callable:
         # where `make_env_name = "make_env" == make_env.__name__`
         ```
     """
-    create_env_fn = lambda: __MakeEnv__.get(make_env_name)(**make_env_kwargs)
+    create_env_fn = lambda: __MakeEnv__.get(make_env_name)(make_env_params)
     return create_env_fn
 
 

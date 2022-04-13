@@ -22,7 +22,6 @@ def _get_input(env, T=20, B=4):
 def test_impala_discrete_Categorical_forward():
     env = MockEnv(obs_space_type="1d", action_space_cls="discrete")
     inputs = _get_input(env)
-    inputs["prev_action"] = inputs["prev_action"].squeeze(-1)
 
     # test if default is set properly
     model = ImpalaNet(env.observation_space, env.action_space)

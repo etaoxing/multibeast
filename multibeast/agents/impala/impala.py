@@ -353,8 +353,6 @@ def main(cfg: omegaconf.DictConfig):
         )
 
     zero_action = sample_from_space(action_space, batch_size=FLAGS.actor_batch_size, to_torch_tensor=True)
-    if action_space["cls"] == "discrete":
-        zero_action = zero_action.flatten()
     env_states = [
         EnvBatchState(
             FLAGS,

@@ -23,7 +23,7 @@ class MockEnv:
         if action_space_cls == "discrete":
             action_space = dict(
                 cls="discrete",
-                shape=(1,),
+                shape=(),
                 low=0,
                 high=10,
                 dtype=np.int64,
