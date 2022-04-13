@@ -72,12 +72,20 @@ def create_model(observation_space, action_space):
     else:
         feature_extractor = None
 
+    action_dist_params = FLAGS.get("action_dist_params", None)
+    policy_params = FLAGS.get("policy_params", dict(cls="PolicyNet"))
+
     model = ImpalaNet(
         observation_space,
         action_space,
         feature_extractor=feature_extractor,
+        action_dist_params=action_dist_params,
+        policy_params=policy_params,
         use_lstm=FLAGS.use_lstm,
     )
+
+    logging.info(f"model: \n{model}")
+
     return model
 
 
