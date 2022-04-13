@@ -32,6 +32,7 @@ class ImpalaNet(nn.Module):
             action_space,
             action_dist_params,
         )
+        # NOTE: for continuous action spaces, currently only supports actions bound to [-1, 1]
 
         self.feature_extractor = feature_extractor
         self.use_lstm = use_lstm
@@ -105,13 +106,16 @@ class ImpalaNet(nn.Module):
             core_output = core_input
 
         core_output = core_output.view(T, B, -1)
-        output = self.policy(core_output, deterministic=deterministic)
+        policy_logits, action = self.policy(core_output, deterministic=deterministic)
         if self.action_space["cls"] == "discrete":
-            output["action"] = output["action"].view(T, B)
+            action = action.view(T, B)
 
         baseline = self.baseline(core_output)
         baseline = baseline.view(T, B)
-        output.update(
+
+        output = dict(
+            policy_logits=policy_logits,
+            action=action,
             baseline=baseline,
         )
         return output, core_state

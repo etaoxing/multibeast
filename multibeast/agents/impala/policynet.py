@@ -55,7 +55,7 @@ class PolicyNet(nn.Module):
         action = action.view(T, B, -1)
         policy_logits = policy_logits.view(T, B, -1)
 
-        return dict(policy_logits=policy_logits, action=action)
+        return policy_logits, action
 
 
 # from https://github.com/SudeepDasari/one_shot_transformers/blob/ecd43b0c182451b67219fdbc7d6a3cd912395f17/hem/models/inverse_module.py#L106
@@ -131,4 +131,7 @@ class MixturePolicyNet(nn.Module):
         else:
             action = action_dist.sample()
 
-        return dict(policy_logits=policy_logits_tuple, action=action)
+        action = action.view(T, B, -1)
+        policy_logits_tuple = tuple(x.view(T, B, -1, self._n_mixtures) for x in policy_logits_tuple)
+
+        return policy_logits_tuple, action
