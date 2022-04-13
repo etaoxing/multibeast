@@ -26,15 +26,19 @@ def to_one_hot(tensor, n, fill_with=1.0):
 # and the original ref: https://arxiv.org/pdf/1701.05517.pdf
 @__Distribution__.register()
 class DiscretizedLogisticMixture(Distribution):
-    def __init__(self, mean, log_scale, logit_probs, num_bins=256, log_scale_min=-7.0):
+    def __init__(self, mean, log_scale, logit_probs, num_bins=256, log_scale_min=-7.0, validate_args=None):
         batch_shape = log_scale.shape[:-1]
         event_shape = mean.shape[len(batch_shape) + 1 :]
-        super().__init__(batch_shape, event_shape, None)
+        super().__init__(batch_shape, event_shape, validate_args)
         self._mean = mean
         self._log_scale = log_scale
         self._logit_probs = logit_probs
         self._num_classes = num_bins
         self._log_scale_min = log_scale_min
+
+    @property
+    def arg_constraints(self):
+        return {}
 
     def log_prob(self, value):
         # reshape value to match convention
