@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Callable
 
 from .utils.registry import Registry
@@ -34,11 +35,27 @@ def build_feature_extractor(feature_extractor_params, observation_space, action_
     return FeatureExtractorCls(observation_space, action_space, **params)
 
 
-MakeEnvRegistry = Registry("MakeEnv")
-MakeEnvRegistry.build = build_make_env
+
+def build_distribution(distribution_params):
+    r"""Returns a wrapped constructor for a torch.Distribution"""
+    c, params = parse_params(distribution_params)
+    try:
+        # import module to load register() calls
+        import multibeast.distributions  # noqa: F401
+
+        DistributionCls = __Distribution__.get(c)
+    except KeyError:
+        import torch.distributions as D
+
+        DistributionCls = getattr(D, c)
+    return partial(DistributionCls, **params)
+
 
 __MakeEnv__ = Registry("MakeEnv")
 __MakeEnv__.build = build_make_env
 
 __FeatureExtractor__ = Registry("FeatureExtractor")
 __FeatureExtractor__.build = build_feature_extractor
+
+__Distribution__ = Registry("Distribution")
+__Distribution__.build = build_distribution
