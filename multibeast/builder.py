@@ -1,12 +1,18 @@
 from functools import partial
 from typing import Callable
 
+import omegaconf
+
 from .utils.registry import Registry
 
 
 def parse_params(params):
     assert "cls" in params.keys()
-    params = params.copy()
+    if isinstance(params, omegaconf.DictConfig):
+        # deal with "omegaconf.errors.ConfigTypeError: DictConfig in struct mode does not support pop"
+        params = dict(params)
+    else:
+        params = params.copy()
     c = params.pop("cls")
     return c, params
 

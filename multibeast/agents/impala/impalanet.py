@@ -38,7 +38,7 @@ class ImpalaNet(nn.Module):
 
         if feature_extractor:
             with torch.no_grad():
-                x = sample_from_space(self.observation_space, to_torch_tensor=True)
+                x = sample_from_space(self.observation_space, batch_size=(1, 1), to_torch_tensor=True)
                 feature_dim = tuple(self.feature_extractor(x).squeeze(0).shape)[0]
             self.fc = nn.Sequential(nn.ReLU(inplace=True), nn.Linear(feature_dim, fc_out_features), nn.ReLU(inplace=True))
         else:

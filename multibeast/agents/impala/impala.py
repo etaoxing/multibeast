@@ -269,15 +269,20 @@ def calculate_sps(stats, delta, prev_steps, is_global=False):
     return env_train_steps
 
 
+SLUG = None
+# need to cache this, otherwise uid will differ b/w what shows up in logger and hydra config
+# when calling impala.run() from a different file with @hydra.main() decorator.
 def uid():
-    return "%s:%i:%s" % (socket.gethostname(), os.getpid(), coolname.generate_slug(2))
+    global SLUG
+    if SLUG is None:
+        SLUG = coolname.generate_slug(2)
+    return "%s:%i:%s" % (socket.gethostname(), os.getpid(), SLUG)
 
 
 omegaconf.OmegaConf.register_new_resolver("uid", uid, use_cache=True)
 
-# Override config_path via --config_path.
-@hydra.main(config_path=".", config_name="config")
-def main(cfg: omegaconf.DictConfig):
+
+def run(cfg: omegaconf.DictConfig):
     global FLAGS
     FLAGS = cfg
 
@@ -315,7 +320,7 @@ def main(cfg: omegaconf.DictConfig):
 
     logging.info(f"EnvPool started: {envs}")
 
-    dummy_env = create_env_fn(dummy_env=True)
+    dummy_env = create_env_fn()  # TODO: pass an option `dummy_env=True`, so that only the desired attributes can be accessed
     observation_space = dummy_env.observation_space
     action_space = dummy_env.action_space
     info_keys_custom = getattr(dummy_env, "info_keys_custom", None)
@@ -606,6 +611,12 @@ def main(cfg: omegaconf.DictConfig):
     if is_connected and is_leader:
         save_checkpoint(checkpoint_path, learner_state)
     logging.info("Graceful exit. Bye bye!")
+
+
+# Override config_path via --config_path.
+@hydra.main(config_path=".", config_name="config")
+def main(cfg: omegaconf.DictConfig):
+    run(cfg)
 
 
 if __name__ == "__main__":

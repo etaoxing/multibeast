@@ -1,1 +1,1 @@
-from .impala import *  # noqa: F403
+from . import impala

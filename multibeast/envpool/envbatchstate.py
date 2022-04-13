@@ -52,7 +52,7 @@ class EnvBatchState:
 
         self.step_count += 1
 
-        info = env_outputs["info"]
+        info = env_outputs.get("info", {})
 
         # TODO: https://arxiv.org/abs/1712.00378
         # timeout = info["timeout"]

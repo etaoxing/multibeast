@@ -19,6 +19,7 @@ install_requires = [
 install_requires += [
     "tinyspace@git+http://github.com/etaoxing/tinyspace#egg=tinyspace",
     "tabulate",
+    "coolname",
 ]
 
 extras_deps = {
