@@ -93,6 +93,14 @@ def from_importance_weights(
         pg_advantages: A float32 tensor of shape [T, B]. Can be used as the
           advantage in the calculation of policy gradients.
     """
+    # from https://github.com/ray-project/ray/blob/c61910487fc01efefed6ef759d461970c7b2f974/rllib/agents/impala/vtrace_torch.py#L308
+    # Make sure tensor ranks are consistent.
+    rho_rank = len(log_rhos.size())  # Usually 2.
+    assert rho_rank == len(values.size())
+    assert rho_rank - 1 == len(bootstrap_value.size()), "must have rank {}".format(rho_rank - 1)
+    assert rho_rank == len(discounts.size())
+    assert rho_rank == len(rewards.size())
+
     rhos = torch.exp(log_rhos)
     if clip_rho_threshold is not None:
         clipped_rhos = torch.clamp(rhos, max=clip_rho_threshold)
@@ -101,7 +109,7 @@ def from_importance_weights(
 
     cs = torch.clamp(rhos, max=1.0)
     if lambda_ is not None:
-      cs *= lambda_
+        cs *= lambda_
     # Append bootstrapped value to get [v1, ..., v_t+1]
     values_t_plus_1 = torch.cat([values[1:], torch.unsqueeze(bootstrap_value, 0)], dim=0)
     deltas = clipped_rhos * (rewards + discounts * values_t_plus_1 - values)
