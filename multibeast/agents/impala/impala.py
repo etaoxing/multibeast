@@ -20,7 +20,7 @@ import omegaconf
 import torch
 import torch.nn as nn
 from moolib.examples import common
-from moolib.examples.common import nest, record, vtrace
+from moolib.examples.common import nest, record
 from tinyspace import sample_from_space
 
 from multibeast.builder import __FeatureExtractor__, __MakeEnv__
@@ -28,6 +28,7 @@ from multibeast.envpool import EnvBatchState, EnvPool
 
 from .impalanet import ImpalaNet
 from ..record_utils import calculate_sps, load_checkpoint, log, save_checkpoint
+from .vtrace import compute_gradients
 
 
 @dataclasses.dataclass
@@ -103,127 +104,6 @@ def create_scheduler(optimizer):
     factor = FLAGS.unroll_length * FLAGS.virtual_batch_size / FLAGS.total_steps
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda epoch: max(1 - epoch * factor, 0))
     return scheduler
-
-
-def compute_vtrace(
-    learner_outputs,
-    behavior_action_log_probs,
-    target_action_log_probs,
-    discounts,
-    rewards,
-    bootstrap_value,
-    clip_rho_threshold=1.0,
-    clip_pg_rho_threshold=1.0,
-):
-    values = learner_outputs["baseline"]
-    log_rhos = target_action_log_probs - behavior_action_log_probs
-
-    # TODO: put this on cpu? https://github.com/deepmind/scalable_agent/blob/6c0c8a701990fab9053fb338ede9c915c18fa2b1/experiment.py#L374
-    # or move to C++ https://github.com/facebookresearch/minihack/blob/65fc16f0f321b00552ca37db8e5f850cbd369ae5/minihack/agent/polybeast/polybeast_learner.py#L342
-    vtrace_returns = vtrace.from_importance_weights(
-        log_rhos=log_rhos,
-        discounts=discounts,
-        rewards=rewards,
-        values=values,
-        bootstrap_value=bootstrap_value,
-        clip_rho_threshold=clip_rho_threshold,
-        clip_pg_rho_threshold=clip_pg_rho_threshold,
-    )
-    vtrace_returns = vtrace.VTraceFromLogitsReturns(
-        log_rhos=log_rhos,
-        behavior_action_log_probs=behavior_action_log_probs,
-        target_action_log_probs=target_action_log_probs,
-        **vtrace_returns._asdict(),
-    )
-    return vtrace_returns
-
-
-def compute_gradients(data, learner_state, stats):
-    model = learner_state.model
-
-    env_outputs = data["env_outputs"]
-    actor_outputs = data["actor_outputs"]
-    initial_core_state = data["initial_core_state"]
-
-    model.train()
-
-    learner_outputs, _ = model(env_outputs, initial_core_state)
-
-    # Use last baseline value (from the value function) to bootstrap.
-    bootstrap_value = learner_outputs["baseline"][-1]
-
-    # Move from env_outputs[t] -> action[t] to action[t] -> env_outputs[t].
-    # seed_rl comment: At this point, we have unroll length + 1 steps. The last step is only used
-    # as bootstrap value, so it's removed.
-    learner_outputs = nest.map(lambda t: t[:-1], learner_outputs)
-    env_outputs = nest.map(lambda t: t[1:], env_outputs)
-    actor_outputs = nest.map(lambda t: t[:-1], actor_outputs)
-
-    rewards = env_outputs["reward"]
-    if FLAGS.reward_clip:
-        rewards = torch.clip(rewards, -FLAGS.reward_clip, FLAGS.reward_clip)
-
-    # TODO: reward normalization ?
-
-    discounts = (~env_outputs["done"]).float() * FLAGS.discounting
-
-    behavior_policy_action_dist = model.policy.action_dist(actor_outputs["policy_logits"])
-    target_policy_action_dist = model.policy.action_dist(learner_outputs["policy_logits"])
-
-    actions = actor_outputs["action"]
-    behavior_action_log_probs = behavior_policy_action_dist.log_prob(actions)
-    target_action_log_probs = target_policy_action_dist.log_prob(actions)
-    vtrace_returns = compute_vtrace(
-        learner_outputs,
-        behavior_action_log_probs,
-        target_action_log_probs,
-        discounts,
-        rewards,
-        bootstrap_value,
-    )
-
-    entropy_loss = FLAGS.entropy_cost * -target_policy_action_dist.entropy().mean()
-
-    # log_likelihoods = target_policy_action_dist.log_prob(actions)
-    log_likelihoods = target_action_log_probs
-    pg_loss = -torch.mean(log_likelihoods * vtrace_returns.pg_advantages.detach())  # policy gradient
-
-    baseline_advantages = vtrace_returns.vs - learner_outputs["baseline"]
-    baseline_loss = FLAGS.baseline_cost * (0.5 * torch.mean(baseline_advantages**2))
-
-    # KL(old_policy|new_policy) loss
-    kl = behavior_action_log_probs - target_action_log_probs
-    kl_loss = FLAGS.get("kl_cost", 0.0) * torch.mean(kl)
-
-    # from .losses import compute_baseline_loss, compute_entropy_loss, compute_policy_gradient_loss
-    #
-    # vtrace_returns = vtrace.from_logits(
-    #     behavior_policy_logits=actor_outputs["policy_logits"],
-    #     target_policy_logits=learner_outputs["policy_logits"],
-    #     actions=actor_outputs["action"],
-    #     discounts=discounts,
-    #     rewards=rewards,
-    #     values=learner_outputs["baseline"],
-    #     bootstrap_value=bootstrap_value,
-    # )
-    # entropy_loss = FLAGS.entropy_cost * compute_entropy_loss(learner_outputs["policy_logits"])
-    # pg_loss = compute_policy_gradient_loss(
-    #     learner_outputs["policy_logits"],
-    #     actor_outputs["action"],
-    #     vtrace_returns.pg_advantages,
-    # )
-    # baseline_loss = FLAGS.baseline_cost * compute_baseline_loss(vtrace_returns.vs - learner_outputs["baseline"])
-
-    total_loss = entropy_loss + pg_loss + baseline_loss + kl_loss
-    total_loss.backward()
-
-    stats["env_train_steps"] += FLAGS.unroll_length * FLAGS.batch_size
-
-    stats["entropy_loss"] += entropy_loss.item()
-    stats["pg_loss"] += pg_loss.item()
-    stats["baseline_loss"] += baseline_loss.item()
-    stats["kl_loss"] += kl_loss.item()
-    stats["total_loss"] += total_loss.item()
 
 
 def step_optimizer(learner_state, stats):
@@ -527,7 +407,7 @@ def run(cfg: omegaconf.DictConfig):
             step_optimizer(learner_state, stats)
             accumulator.zero_gradients()
         elif not learn_batcher.empty() and accumulator.wants_gradients():
-            compute_gradients(learn_batcher.get(), learner_state, stats)
+            compute_gradients(FLAGS, learn_batcher.get(), learner_state, stats)
             accumulator.reduce_gradients(FLAGS.batch_size)
         else:
             if accumulator.wants_gradients():
