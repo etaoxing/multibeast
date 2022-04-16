@@ -1,2 +1,2 @@
 from . import impala
-from .policynet import MixturePolicyNet, PolicyNet
+from .policy_nets import MixturePolicyNet, PolicyNet
