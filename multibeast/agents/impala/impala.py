@@ -27,6 +27,7 @@ from multibeast.builder import __FeatureExtractor__, __MakeEnv__
 from multibeast.envpool import EnvBatchState, EnvPool
 
 from .impalanet import ImpalaNet
+from ..record_utils import calculate_sps, load_checkpoint, log, save_checkpoint
 
 
 @dataclasses.dataclass
@@ -234,52 +235,6 @@ def step_optimizer(learner_state, stats):
     stats["unclipped_grad_norm"] += unclipped_grad_norm.item()
     stats["optimizer_steps"] += 1
     stats["model_version"] += 1
-
-
-def log(stats, step, is_global=False):
-    stats_values = {}
-    prefix = "global/" if is_global else "local/"
-    for k, v in stats.items():
-        stats_values[prefix + k] = v.result()
-        v.reset()
-
-    logging.info(f"\n{pprint.pformat(stats_values)}")
-    if not is_global:
-        record.log_to_file(**stats_values)
-
-    if FLAGS.wandb:
-        import wandb
-
-        wandb.log(stats_values, step=step)
-
-
-def save_checkpoint(checkpoint_path, learner_state):
-    tmp_path = "%s.tmp.%s" % (checkpoint_path, moolib.create_uid())
-
-    logging.info("saving global stats %s", learner_state.global_stats)
-
-    checkpoint = {
-        "learner_state": learner_state.save(),
-        "flags": omegaconf.OmegaConf.to_container(FLAGS),
-    }
-
-    torch.save(checkpoint, tmp_path)
-    os.replace(tmp_path, checkpoint_path)
-
-    logging.info("Checkpoint saved to %s", checkpoint_path)
-
-
-def load_checkpoint(checkpoint_path, learner_state):
-    checkpoint = torch.load(checkpoint_path)
-    learner_state.load(checkpoint["learner_state"])
-
-
-def calculate_sps(stats, delta, prev_steps, is_global=False):
-    env_train_steps = stats["env_train_steps"].result()
-    prefix = "global/" if is_global else "local/"
-    logging.info("%s calculate_sps %g steps in %g seconds", prefix, env_train_steps - prev_steps, delta)
-    stats["SPS"] += (env_train_steps - prev_steps) / delta
-    return env_train_steps
 
 
 SLUG = None
@@ -537,8 +492,8 @@ def run(cfg: omegaconf.DictConfig):
 
             steps = learner_state.global_stats["env_train_steps"].result()
 
-            log(stats, step=steps, is_global=False)
-            log(learner_state.global_stats, step=steps, is_global=True)
+            log(stats, step=steps, is_global=False, wandb=FLAGS.wandb)
+            log(learner_state.global_stats, step=steps, is_global=True, wandb=FLAGS.wandb)
 
             if warm_up_time > 0:
                 logging.info("Warming up up for an additional %g seconds", round(warm_up_time))
@@ -553,13 +508,14 @@ def run(cfg: omegaconf.DictConfig):
                 logging.info("Training a new model from scratch.")
             if learner_state.train_time - learner_state.last_checkpoint >= FLAGS.checkpoint_interval:
                 learner_state.last_checkpoint = learner_state.train_time
-                save_checkpoint(checkpoint_path, learner_state)
+                save_checkpoint(checkpoint_path, learner_state, FLAGS)
             if learner_state.train_time - learner_state.last_checkpoint_history >= FLAGS.checkpoint_history_interval:
                 learner_state.last_checkpoint_history = learner_state.train_time
                 save_checkpoint(
                     os.path.join(
                         FLAGS.savedir,
                         "checkpoint_v%d.tar" % learner_state.model_version,
+                        FLAGS,
                     ),
                     learner_state,
                 )
@@ -623,7 +579,7 @@ def run(cfg: omegaconf.DictConfig):
                 env_state.initial_core_state = prev_core_state
                 env_state.time_batcher.stack(last_data)
     if is_connected and is_leader:
-        save_checkpoint(checkpoint_path, learner_state)
+        save_checkpoint(checkpoint_path, learner_state, FLAGS)
     logging.info("Graceful exit. Bye bye!")
 
 
