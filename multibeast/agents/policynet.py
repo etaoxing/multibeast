@@ -19,16 +19,17 @@ class PolicyNet(nn.Module):
         state_dependent_std: If True, then use an additional layer to predict std given the state features.
         log_std_init: Initial value for the log standard deviation (using log std in fact to allow negative values)
     """
+
     def __init__(
         self,
         core_output_size,
         num_actions,
         action_dist_params,
-        learn_std=None,
-        state_dependent_std=False,
+        learn_std: bool = None,
+        state_dependent_std: bool = False,
         log_std_init: float = -2.0,  # stable_baselines3 default, jaxrl uses 0.0
-        log_std_min=-10.0,
-        log_std_max=2.0,
+        log_std_min: float = -10.0,
+        log_std_max: float = 2.0,
     ):
         super().__init__()
         self.action_dist_cls = __Distribution__.build(action_dist_params)
@@ -109,9 +110,9 @@ class MixturePolicyNet(nn.Module):
         in_dim,
         out_dim,
         action_dist_params,
-        n_mixtures=3,
-        const_var=False,
-        hidden_dim=256,
+        n_mixtures: int = 3,
+        const_var: bool = False,
+        hidden_dim: int = 256,
     ):
         super().__init__()
         self.action_dist_cls = __Distribution__.build(action_dist_params)
