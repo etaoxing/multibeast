@@ -12,18 +12,17 @@ def _get_input(env, T, B):
     prev_action = tinyspace.sample_from_space(env.action_space, batch_size=(T, B), to_torch_tensor=True)
     inputs = dict(
         prev_action=prev_action,
-        reward=torch.ones((T, B)),
+        reward=torch.randn((T, B)),
         state=x,
     )
     return inputs
 
 
 @pytest.mark.order(1)
-def test_impala_discrete_Categorical_forward():
+def test_impala_forward_Categorical():
     env = MockEnv(obs_space_type="1d", action_space_cls="discrete")
 
-    T = 20
-    B = 4
+    T, B = 20, 4
     inputs = _get_input(env, T=T, B=B)
 
     # test if default is set properly
@@ -42,12 +41,46 @@ def test_impala_discrete_Categorical_forward():
     action_dist_params = dict(cls="Categorical")
     model = ImpalaNet(env.observation_space, env.action_space, action_dist_params=action_dist_params)
 
+
 @pytest.mark.order(2)
-def test_impala_box_DiscretizedLogisticMixture_forward():
+def test_impala_forward_SquashedDiagGaussian():
     env = MockEnv(obs_space_type="1d", action_space_cls="box")
 
-    T = 20
-    B = 4
+    T, B = 20, 4
+    inputs = _get_input(env, T=T, B=B)
+
+    policy_params = dict(cls="PolicyNet", learn_std=False)
+
+    # test if default is set properly
+    model = ImpalaNet(env.observation_space, env.action_space, policy_params=policy_params)
+    outputs, core_state = model(inputs)
+
+    loc = outputs["policy_logits"][0]
+    scale = outputs["policy_logits"][1]
+    assert loc.shape == (T, B, model.num_actions)
+    assert scale.shape == (T, B, model.num_actions)
+    assert outputs["action"].shape == (T, B, model.num_actions)
+    assert outputs["baseline"].shape == (T, B)
+
+    # try creating distribution
+    action_dist = model.policy.action_dist(outputs["policy_logits"])
+    assert action_dist.log_prob(outputs["action"]).shape == (T, B)
+
+    # test override
+    action_dist_params = dict(cls="SquashedDiagGaussian")
+    model = ImpalaNet(
+        env.observation_space,
+        env.action_space,
+        action_dist_params=action_dist_params,
+        policy_params=policy_params,
+    )
+
+
+@pytest.mark.order(2)
+def test_impala_forward_DiscretizedLogisticMixture():
+    env = MockEnv(obs_space_type="1d", action_space_cls="box")
+
+    T, B = 20, 4
     inputs = _get_input(env, T, B)
 
     action_dist_params = dict(cls="DiscretizedLogisticMixture", num_bins=256)

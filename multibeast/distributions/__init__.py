@@ -1,2 +1,2 @@
 from .discretized_logistic_mixture import DiscretizedLogisticMixture
-from .tanh_normal import TanhNormal
+from .squashed_diag_gaussian import SquashedDiagGaussian
