@@ -7,6 +7,18 @@ from multibeast.builder import __Distribution__, __PolicyNet__
 
 @__PolicyNet__.register()
 class PolicyNet(nn.Module):
+    r"""This module supports up to two outputs (loc and scale) for some distribution parameterizing the policy.
+
+    Refs:
+    - https://github.com/ikostrikov/jaxrl/blob/8ac614b0c5202acb7bb62cdb1b082b00f257b08c/jaxrl/networks/policies.py#L14
+    - https://github.com/DLR-RM/stable-baselines3/blob/ed308a71be24036744b5ad4af61b083e4fbdf83c/stable_baselines3/common/distributions.py#L115
+
+    Args:
+        learn_std: If None, then do not output stdev. If True, then std is learnable. If False, then
+            std is kept constant to some initial value.
+        state_dependent_std: If True, then use an additional layer to predict std given the state features.
+        log_std_init: Initial value for the log standard deviation (using log std in fact to allow negative values)
+    """
     def __init__(
         self,
         core_output_size,
@@ -14,13 +26,20 @@ class PolicyNet(nn.Module):
         action_dist_params,
         learn_std=None,
         state_dependent_std=False,
-        init_std=1.0,
-        min_std=1e-6,
-        max_std=None,
+        log_std_init: float = -2.0,  # stable_baselines3 default, jaxrl uses 0.0
+        log_std_min=-10.0,
+        log_std_max=2.0,
     ):
         super().__init__()
-        self.logits = nn.Linear(core_output_size, num_actions)
         self.action_dist_cls = __Distribution__.build(action_dist_params)
+
+        self.learn_std = learn_std
+        self.state_dependent_std = state_dependent_std
+        self.log_std_init = log_std_init
+        self.log_std_min = log_std_min
+        self.log_std_max = log_std_max
+
+        self.logits = nn.Linear(core_output_size, num_actions)
 
         if learn_std is not None:
             output_dim = num_actions
@@ -28,34 +47,55 @@ class PolicyNet(nn.Module):
             if state_dependent_std:
                 self._log_std = nn.Linear(core_output_size, output_dim)
             else:
-                self._init_std = torch.Tensor([init_std]).log()
-                log_std = torch.Tensor([init_std] * output_dim).log()
-                if learn_std:
-                    self._log_std = torch.nn.Parameter(log_std)
-                else:
-                    self._log_std = log_std
-                    self.register_buffer("log_std", self._log_std)
-
-            raise NotImplementedError
+                # -> diag covariance
+                self._log_std = nn.Parameter(torch.ones(output_dim) * log_std_init, requires_grad=learn_std)
 
     def action_dist(self, policy_logits):
-        return self.action_dist_cls(logits=policy_logits)
+        if self.learn_std is None:
+            return self.action_dist_cls(logits=policy_logits)
+        else:
+            assert isinstance(policy_logits, tuple)
+            loc = policy_logits[0]
+            scale = policy_logits[1]
+            return self.action_dist_cls(loc, scale)
 
     def forward(self, core_output, deterministic: bool = False):
         T, B, _ = core_output.shape
+        x = core_output.view(T * B, -1)
+        policy_logits = self.logits(x)
 
-        policy_logits = self.logits(core_output.view(T * B, -1))
+        if self.learn_std is None:
+            pass
+        else:
+            mu = policy_logits
+
+            if self.state_dependent_std:
+                scale = self._log_std(x)
+            else:
+                scale = self._log_std if self.training else self._log_std.detach()
+                # NOTE: even though action_dist_cls may handle it, we expand scale to help moolib.Batcher
+                scale = scale.view(1, -1).expand_as(mu)
+
+            scale = torch.clamp(scale, self.log_std_min, self.log_std_max)
+            scale = torch.exp(scale)
+            policy_logits = (mu, scale)
 
         action_dist = self.action_dist(policy_logits)
         if deterministic:
             raise NotImplementedError
         else:
-            action = action_dist.sample()
+            # D.Categorical only defines sample()
+            action = action_dist.rsample() if action_dist.has_rsample else action_dist.sample()
 
-        action = action.view(T, B, -1)
-        policy_logits = policy_logits.view(T, B, -1)
-
-        return policy_logits, action
+        if self.learn_std is None:
+            action = action.view(T, B, -1)
+            policy_logits = policy_logits.view(T, B, -1)
+            return policy_logits, action
+        else:
+            action = action.view(T, B, -1)
+            mu = mu.view(T, B, -1)
+            scale = scale.view(T, B, -1)
+            return (mu, scale), action
 
 
 # from https://github.com/SudeepDasari/one_shot_transformers/blob/ecd43b0c182451b67219fdbc7d6a3cd912395f17/hem/models/inverse_module.py#L106
@@ -97,6 +137,7 @@ class MixturePolicyNet(nn.Module):
             # independent of state, still optimized
             ln_scale = torch.randn(out_dim, dtype=torch.float32) / np.sqrt(out_dim)
             self.register_parameter("_ln_scale", nn.Parameter(ln_scale, requires_grad=True))
+            # TODO: std per mixture?
         else:
             # state dependent
             self._ln_scale = nn.Linear(hidden_dim, out_dim * n_mixtures)
@@ -115,7 +156,7 @@ class MixturePolicyNet(nn.Module):
         mu = self._mu(x).reshape((x.shape[:-1] + self._dist_size))
         if self._const_var:
             ln_scale = self._ln_scale if self.training else self._ln_scale.detach()
-            ln_scale = ln_scale.reshape((1, 1, -1, 1)).expand_as(mu)
+            ln_scale = ln_scale.reshape((1, -1, 1)).expand_as(mu)
         else:
             ln_scale = self._ln_scale(x).reshape((x.shape[:-1] + self._dist_size))
 
@@ -129,7 +170,7 @@ class MixturePolicyNet(nn.Module):
         if deterministic:
             raise NotImplementedError
         else:
-            action = action_dist.sample()
+            action = action_dist.rsample()
 
         action = action.view(T, B, -1)
         policy_logits_tuple = tuple(x.view(T, B, -1, self._n_mixtures) for x in policy_logits_tuple)

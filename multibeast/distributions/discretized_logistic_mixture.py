@@ -24,6 +24,7 @@ def to_one_hot(tensor, n, fill_with=1.0):
 # https://github.com/r9y9/wavenet_vocoder/blob/a35fff76ea3687b05e1a10023cad3f7f64fa25a3/wavenet_vocoder/mixture.py
 # see A.2 of https://arxiv.org/pdf/1903.01973.pdf
 # and the original ref: https://arxiv.org/pdf/1701.05517.pdf
+# https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/PixelCNN
 @__Distribution__.register()
 class DiscretizedLogisticMixture(Distribution):
     def __init__(self, mean, log_scale, logit_probs, num_bins=256, log_scale_min=-7.0, validate_args=None):
@@ -101,7 +102,7 @@ class DiscretizedLogisticMixture(Distribution):
         log_probs = log_probs + F.log_softmax(logit_probs, -1)
         return torch.logsumexp(log_probs, axis=-1).reshape(value.shape)
 
-    def sample(self):
+    def rsample(self):
         n_mix = self._log_scale.shape[-1]
         logit_probs = self._logit_probs.reshape((self._log_scale.shape[0], -1, n_mix))
 
