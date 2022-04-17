@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from multibeast.builder import __Distribution__, __FeatureExtractor__, __MakeEnv__, __PolicyNet__
-from multibeast.agents import get_action_params
+from multibeast.distributions import get_action_params
 
 from .mock_env import MockEnv
 
@@ -54,7 +54,6 @@ def test_PolicyNet_build():
     policy_net_flags = dict(cls="MockModule", n_layers=5)
     policy_net = __PolicyNet__.build(policy_net_flags, 128, num_actions, action_dist_params)
     assert policy_net.n_layers == 5
-    print(policy_net.action_dist_cls)
     policy_net.action_dist(torch.randn((20, 4)))
 
     assert __PolicyNet__._undo_register(MockModule.__name__)
