@@ -26,7 +26,16 @@ def test_impala_forward_Categorical():
     inputs = _get_input(env, T=T, B=B)
 
     # test if default is set properly
+    policy_params = dict(cls="PolicyNet")
+    action_dist_params = dict(cls="Categorical")
     model = ImpalaNet(env.observation_space, env.action_space)
+    model = ImpalaNet(
+        env.observation_space,
+        env.action_space,
+        policy_params=policy_params,
+        action_dist_params=action_dist_params,
+    )
+
     outputs, core_state = model(inputs)
 
     assert outputs["policy_logits"].shape == (T, B, model.num_actions)
@@ -37,10 +46,6 @@ def test_impala_forward_Categorical():
     action_dist = model.policy.action_dist(outputs["policy_logits"])
     assert action_dist.log_prob(outputs["action"]).shape == (T, B)
 
-    # test override
-    action_dist_params = dict(cls="Categorical")
-    model = ImpalaNet(env.observation_space, env.action_space, action_dist_params=action_dist_params)
-
 
 @pytest.mark.order(2)
 def test_impala_forward_SquashedDiagGaussian():
@@ -50,9 +55,13 @@ def test_impala_forward_SquashedDiagGaussian():
     inputs = _get_input(env, T=T, B=B)
 
     policy_params = dict(cls="PolicyNet", learn_std=False)
-
-    # test if default is set properly
-    model = ImpalaNet(env.observation_space, env.action_space, policy_params=policy_params)
+    action_dist_params = dict(cls="SquashedDiagGaussian")
+    model = ImpalaNet(
+        env.observation_space,
+        env.action_space,
+        policy_params=policy_params,
+        action_dist_params=action_dist_params,
+    )
     outputs, core_state = model(inputs)
 
     loc = outputs["policy_logits"][0]
@@ -65,15 +74,6 @@ def test_impala_forward_SquashedDiagGaussian():
     # try creating distribution
     action_dist = model.policy.action_dist(outputs["policy_logits"])
     assert action_dist.log_prob(outputs["action"]).shape == (T, B)
-
-    # test override
-    action_dist_params = dict(cls="SquashedDiagGaussian")
-    model = ImpalaNet(
-        env.observation_space,
-        env.action_space,
-        action_dist_params=action_dist_params,
-        policy_params=policy_params,
-    )
 
 
 @pytest.mark.order(2)
