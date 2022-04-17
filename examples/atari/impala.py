@@ -34,9 +34,6 @@ def main(cfg: omegaconf.DictConfig):
         feature_extractor=dict(cls=ResNetEncoder.__name__),
         use_moolib_envpool=True,
         make_env_name="make_env_atari",
-        num_actor_processes=cfg.num_actor_cpus,
-        tags="",
-        notes="",
     )
     new_flags = omegaconf.OmegaConf.create(new_flags)
     cfg = omegaconf.OmegaConf.merge(new_flags, cfg)

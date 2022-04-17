@@ -107,8 +107,8 @@ def run(cfg: omegaconf.DictConfig):
             group=FLAGS.group,
             entity=FLAGS.entity,
             name=FLAGS.local_name,
-            tags=FLAGS.tags,
-            notes=FLAGS.notes,
+            tags=FLAGS.get("tags", None),
+            notes=FLAGS.get("notes", None),
         )
 
     zero_action = sample_from_space(action_space, batch_size=FLAGS.actor_batch_size, to_torch_tensor=True)

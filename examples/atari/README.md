@@ -9,8 +9,5 @@ python -m examples.atari.impala connect=$BROKER_IP:$BROKER_PORT \
     project=multibeast-atari \
     group=Zaxxon-Breakout \
     env.name=ALE/Breakout-v5 \
-    wandb=true \
-    num_actor_cpus=64 \
-    --config-path=${PWD}/third_party/moolib/examples/vtrace/ \
-    --config-name=config
+    wandb=1
 ```

@@ -11,6 +11,8 @@ class EnvBatchState:
 
     Args:
         flags:
+          unroll_length: Length of a rollout (i.e., number of steps that an actor has
+            to be perform before sending its experience to the learner).
         model:
         zero_action: a tensor of zeros with shape [`flags.actor_batch_size`, `env.action_space.action_dim`]
         info_custom_keys: a list of keys to track stats for from the info dict.

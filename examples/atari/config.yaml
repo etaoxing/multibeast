@@ -1,0 +1,82 @@
+defaults:
+- override hydra/job_logging: colorlog
+- override hydra/hydra_logging: colorlog
+- override hydra/launcher: submitit_slurm
+
+hydra:
+  job_logging:
+    formatters:
+      simple:
+        format: ${log_fmt}
+  run:
+    dir: "${localdir}"
+
+connect: 127.0.0.1:4431
+device: cuda:0
+local_name: "${uid:}"
+log_fmt: "[%(levelname)s:${local_name} %(module)s:%(lineno)d %(asctime)s] %(message)s"
+log_interval: 10
+
+wandb: false
+entity: null
+project: project
+group: group
+tags: null
+notes: null
+# Savedir is used for storing the checkpoint(s),
+# including flags and any global settings/stats for the training
+# localdir (which is a subdirectory of savedir) should be used
+# for storing logs and anything local to each instance
+savedir: "outputs/${oc.env:USER}/${project}/${group}"
+localdir: "${savedir}/peers/${local_name}"
+
+# ----------
+# pulled from https://github.com/facebookresearch/moolib/blob/e8b2de7ac5df3a9b3ee2548a33f61100a95152ef/examples/vtrace/config.yaml
+
+env:
+  name: "ALE/Pong-v5"  # See https://brosa.ca/blog/ale-release-v0.7
+  repeat_action_probability: 0.0  # Sticky action probability
+  num_action_repeats: 4
+
+total_steps: 50e6  # 200M steps w/ frame skipping.
+unroll_length: 20
+warmup: 0
+batch_size: 32
+num_actor_processes: 64
+actor_batch_size: 128
+num_actor_batches: 2
+virtual_batch_size: 32
+
+checkpoint_interval: 600
+checkpoint_history_interval: 3600
+
+agent:
+  cls: "Impala"
+  reward_clip: 1.0
+  use_lstm: false
+
+  policy_params:
+    cls: "PolicyNet"
+  action_dist_params:
+    cls: "Categorical"
+
+  discounting: 0.99
+  entropy_cost: 0.0006
+  baseline_cost: 0.5
+  kl_cost: 0.0
+
+  grad_norm_clipping: 40
+  optimizer:
+    cls: "Adam"
+    lr: 0.0006
+    # PyTorch defaults for betas and eps
+    betas: [0.9, 0.999]  # omegaconf doesn't support tuples rn, but list works fine
+    eps: 1e-8
+
+  # entropy_cost: 0.01
+  # optimizer:
+  #   cls: "RMSProp"
+  #   lr: 0.00048  # from polybeast, o.g. IMPALA reports 0.0006, see table G.1 of IMPALA paper
+  #   alpha: 0.99  # smoothing constant
+  #   momentum: 0
+  #   eps: 0.01

@@ -180,7 +180,7 @@ class Impala:
         # from https://github.com/google-research/seed_rl/blob/66e8890261f09d0355e8bf5f1c5e41968ca9f02b/agents/vtrace/learner.py#L123
         # KL(old_policy|new_policy) loss
         kl = behavior_action_log_probs - target_action_log_probs
-        kl_loss = FLAGS.get("kl_cost", 0.0) * torch.mean(kl)
+        kl_loss = FLAGS.kl_cost * torch.mean(kl)
         # TODO: could also use `D.kl_divergence(behavior_policy_action_dist, target_policy_action_dist)`
 
         total_loss = entropy_loss + pg_loss + baseline_loss + kl_loss
