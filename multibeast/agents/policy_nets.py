@@ -1,8 +1,34 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.distributions as D
 
 from multibeast.builder import __Distribution__, __PolicyNet__
+
+
+class ExamplePolicyNet(nn.Module):
+    def __init__(
+        self,
+        core_output_size,
+        num_actions,
+        action_dist_params,
+    ):
+        self.action_dist_cls = __Distribution__.build(action_dist_params)
+        self.logits = nn.Linear(core_output_size, num_actions)
+
+    def action_dist(self, policy_logits) -> D.Distribution:
+        action_dist = self.action_dist_cls(logits=policy_logits)
+        return action_dist
+
+    def forward(self, core_output, deterministic: bool = False):
+        T, B, _ = core_output.shape
+        x = core_output.view(T * B, -1)
+        policy_logits = self.logits(x)
+        action_dist = self.action_dist(policy_logits)
+        action = action_dist.rsample()  # preferred if has rsample(..) to pass gradients w/ reparameterization trick
+        action = action.view(T, B, -1)
+        policy_logits = policy_logits.view(T, B, -1)
+        return policy_logits, action
 
 
 @__PolicyNet__.register()
