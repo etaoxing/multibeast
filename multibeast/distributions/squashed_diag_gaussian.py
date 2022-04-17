@@ -91,8 +91,7 @@ class SquashedDiagGaussian(D.Distribution):  # aka TanhNormal
         return torch.tanh(sampled)
 
     def mode(self):
-        r"""Deterministically returns the most likely sample from the distribution
-        """
+        r"""Deterministically returns the most likely sample from the distribution"""
         return torch.tanh(self.gaussian.mean)
 
     def entropy(self):

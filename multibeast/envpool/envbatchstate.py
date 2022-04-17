@@ -35,6 +35,8 @@ class EnvBatchState:
             self.weighted_returns = torch.zeros(batch_size)
             self.weighted_returns_rms = RunningMeanStd()
 
+        if info_keys_custom is None:
+            info_keys_custom = []
         self.info_keys_custom = info_keys_custom
 
         self.time_batcher = moolib.Batcher(flags.unroll_length + 1, device)
@@ -70,9 +72,8 @@ class EnvBatchState:
             if "progress" in info.keys():
                 stats["end_episode_progress"] += (info["progress"] * done).sum().item() / episodes_done
 
-            if self.info_keys_custom:
-                for k in self.info_keys_custom:
-                    stats[f"end_{k}"] += (info[k] * done).sum().item() / episodes_done
+            for k in self.info_keys_custom:
+                stats[f"end_{k}"] += (info[k] * done).sum().item() / episodes_done
 
         stats["steps_done"] += done.numel()
         stats["episodes_done"] += episodes_done

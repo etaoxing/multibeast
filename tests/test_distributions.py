@@ -1,7 +1,7 @@
 import torch
+import torch.distributions as D
 
 from multibeast.distributions import SquashedDiagGaussian
-import torch.distributions as D
 
 
 # from https://github.com/denisyarats/pytorch_sac/blob/7aa74312d82be95a8ae42d62d82f47a0980553da/distribs.py#L38
