@@ -1,4 +1,13 @@
-class AgentExample:
+import dataclasses
+
+
+@dataclasses.dataclass
+class ExampleLearnerState:
+    r"""See impala.ImpalaLearnerState"""
+    pass
+
+
+class ExampleAgent:
     @staticmethod
     def create_agent(FLAGS, observation_space, action_space):
         r"""This function creates a `nn.Module` model and `LearnerState` for optimizing an agent.
