@@ -32,8 +32,6 @@ See https://arxiv.org/abs/1802.01561 for the full paper.
 import collections
 
 import torch
-import torch.nn.functional as F
-from moolib.examples.common import nest
 
 VTraceReturns = collections.namedtuple("VTraceReturns", ["vs", "pg_advantages"])
 
@@ -162,96 +160,4 @@ def compute_vtrace(
         clip_rho_threshold=clip_rho_threshold,
         clip_pg_rho_threshold=clip_pg_rho_threshold,
     )
-    vtrace_returns = vtrace.VTraceFromLogitsReturns(
-        log_rhos=log_rhos,
-        behavior_action_log_probs=behavior_action_log_probs,
-        target_action_log_probs=target_action_log_probs,
-        **vtrace_returns._asdict(),
-    )
     return vtrace_returns
-
-
-def compute_gradients(FLAGS, data, learner_state, stats):
-    model = learner_state.model
-
-    env_outputs = data["env_outputs"]
-    actor_outputs = data["actor_outputs"]
-    initial_core_state = data["initial_core_state"]
-
-    model.train()
-
-    learner_outputs, _ = model(env_outputs, initial_core_state)
-
-    # Use last baseline value (from the value function) to bootstrap.
-    bootstrap_value = learner_outputs["baseline"][-1]
-
-    # Move from env_outputs[t] -> action[t] to action[t] -> env_outputs[t].
-    # seed_rl comment: At this point, we have unroll length + 1 steps. The last step is only used
-    # as bootstrap value, so it's removed.
-    learner_outputs = nest.map(lambda t: t[:-1], learner_outputs)
-    env_outputs = nest.map(lambda t: t[1:], env_outputs)
-    actor_outputs = nest.map(lambda t: t[:-1], actor_outputs)
-
-    rewards = env_outputs["reward"]
-    if FLAGS.reward_clip:
-        rewards = torch.clip(rewards, -FLAGS.reward_clip, FLAGS.reward_clip)
-
-    # TODO: reward normalization ?
-
-    discounts = (~env_outputs["done"]).float() * FLAGS.discounting
-
-    behavior_policy_action_dist = model.policy.action_dist(actor_outputs["policy_logits"])
-    target_policy_action_dist = model.policy.action_dist(learner_outputs["policy_logits"])
-
-    actions = actor_outputs["action"]
-    behavior_action_log_probs = behavior_policy_action_dist.log_prob(actions)
-    target_action_log_probs = target_policy_action_dist.log_prob(actions)
-    vtrace_returns = compute_vtrace(
-        learner_outputs,
-        behavior_action_log_probs,
-        target_action_log_probs,
-        discounts,
-        rewards,
-        bootstrap_value,
-    )
-
-    entropy_loss = FLAGS.entropy_cost * -target_policy_action_dist.entropy().mean()
-
-    # log_likelihoods = target_policy_action_dist.log_prob(actions)
-    log_likelihoods = target_action_log_probs
-    pg_loss = -torch.mean(log_likelihoods * vtrace_returns.pg_advantages.detach())  # policy gradient
-
-    baseline_advantages = vtrace_returns.vs - learner_outputs["baseline"]
-    baseline_loss = FLAGS.baseline_cost * (0.5 * torch.mean(baseline_advantages**2))
-
-    # KL(old_policy|new_policy) loss
-    kl = behavior_action_log_probs - target_action_log_probs
-    kl_loss = FLAGS.get("kl_cost", 0.0) * torch.mean(kl)
-
-    # from .losses import compute_baseline_loss, compute_entropy_loss, compute_policy_gradient_loss
-    #
-    # vtrace_returns = vtrace.from_logits(
-    #     behavior_policy_logits=actor_outputs["policy_logits"],
-    #     target_policy_logits=learner_outputs["policy_logits"],
-    #     actions=actor_outputs["action"],
-    #     discounts=discounts,
-    #     rewards=rewards,
-    #     values=learner_outputs["baseline"],
-    #     bootstrap_value=bootstrap_value,
-    # )
-    # entropy_loss = FLAGS.entropy_cost * compute_entropy_loss(learner_outputs["policy_logits"])
-    # pg_loss = compute_policy_gradient_loss(
-    #     learner_outputs["policy_logits"],
-    #     actor_outputs["action"],
-    #     vtrace_returns.pg_advantages,
-    # )
-    # baseline_loss = FLAGS.baseline_cost * compute_baseline_loss(vtrace_returns.vs - learner_outputs["baseline"])
-
-    total_loss = entropy_loss + pg_loss + baseline_loss + kl_loss
-    total_loss.backward()
-
-    stats["entropy_loss"] += entropy_loss.item()
-    stats["pg_loss"] += pg_loss.item()
-    stats["baseline_loss"] += baseline_loss.item()
-    stats["kl_loss"] += kl_loss.item()
-    stats["total_loss"] += total_loss.item()
