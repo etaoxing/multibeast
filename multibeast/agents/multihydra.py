@@ -157,7 +157,7 @@ def run(cfg: omegaconf.DictConfig):
         "num_gradients": common.StatMean(),
         #
         "optimizer_steps": common.StatSum(),  # should be updated by `Agent.step_optimizer()`
-        "model_version": common.StatSum(),    # should be updated by `Agent.step_optimizer()`
+        "model_version": common.StatSum(),  # should be updated by `Agent.step_optimizer()`
     }
     for k in info_keys_custom:
         runner_stats[f"end_{k}"] = common.StatMean()

@@ -34,8 +34,6 @@ class ImpalaNet(nn.Module):
         )
 
         self.feature_extractor = feature_extractor
-        self.use_lstm = use_lstm
-
         if feature_extractor:
             with torch.no_grad():
                 x = sample_from_space(self.observation_space, batch_size=(1, 1), to_torch_tensor=True)
@@ -48,12 +46,11 @@ class ImpalaNet(nn.Module):
         # FC output size + last action (one-hot if discrete) + last reward.
         core_output_size = fc_out_features + self.num_actions + 1
 
+        self.use_lstm = use_lstm
         if use_lstm:
             self.core = nn.LSTM(core_output_size, 256, num_layers=1)
             core_output_size = 256
 
-        if policy_params is None:
-            policy_params = dict(cls="PolicyNet")
         self.policy = __PolicyNet__.build(policy_params, core_output_size, self.num_actions, self.action_dist_params)
         self.baseline = nn.Linear(core_output_size, 1)
 

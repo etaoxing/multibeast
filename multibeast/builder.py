@@ -42,6 +42,9 @@ def build_feature_extractor(feature_extractor_params, observation_space, action_
 
 
 def build_policy_net(policy_params, *args):
+    if policy_params is None:
+        policy_params = dict(cls="PolicyNet")
+
     c, params = parse_params(policy_params)
     PolicyNetCls = __PolicyNet__.get(c)
     return PolicyNetCls(*args, **params)

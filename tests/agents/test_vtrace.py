@@ -29,6 +29,7 @@ import unittest
 
 import numpy as np
 import torch
+
 # from moolib.examples.common import vtrace
 from multibeast.agents.impala import vtrace
 
@@ -247,6 +248,7 @@ class VtraceTest(unittest.TestCase):
         #     vtrace.from_importance_weights(**values)
         with self.assertRaisesRegex(AssertionError, "must have rank 2"):
             vtrace.from_importance_weights(**values)
+
 
 if __name__ == "__main__":
     unittest.main()

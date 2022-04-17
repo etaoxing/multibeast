@@ -1,7 +1,7 @@
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.distributions as D
+import torch.nn as nn
 
 from multibeast.builder import __Distribution__, __PolicyNet__
 
