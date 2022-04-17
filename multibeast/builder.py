@@ -67,6 +67,15 @@ def build_agent(agent_name):
     return AgentCls
 
 
+def build_optimizer(optimizer_params, model_params):
+    c, params = parse_params(optimizer_params)
+
+    import torch.optim  # noqa: F401
+
+    OptimizerCls = getattr(torch.optim, c)
+    return OptimizerCls(model_params, **params)
+
+
 __MakeEnv__ = Registry("MakeEnv")
 __MakeEnv__.build = build_make_env
 

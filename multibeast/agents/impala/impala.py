@@ -7,7 +7,7 @@ import torch.nn as nn
 from moolib.examples import common
 from moolib.examples.common import nest
 
-from multibeast.builder import __Agent__, __FeatureExtractor__
+from multibeast.builder import __Agent__, __FeatureExtractor__, __Optimizer__
 
 from .impala_net import ImpalaNet
 from .vtrace import compute_vtrace
@@ -79,15 +79,6 @@ class Impala:
         return model
 
     @staticmethod
-    def _create_optimizer(FLAGS, model):
-        return torch.optim.Adam(
-            model.parameters(),
-            lr=FLAGS.optimizer.learning_rate,
-            betas=(FLAGS.optimizer.beta_1, FLAGS.optimizer.beta_2),
-            eps=FLAGS.optimizer.epsilon,
-        )
-
-    @staticmethod
     def _create_scheduler(FLAGS, optimizer):
         factor = FLAGS.unroll_length * FLAGS.virtual_batch_size / FLAGS.total_steps
         scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda epoch: max(1 - epoch * factor, 0))
@@ -96,7 +87,7 @@ class Impala:
     @staticmethod
     def create_agent(FLAGS, observation_space, action_space):
         model = Impala._create_model(FLAGS, observation_space, action_space)
-        optimizer = Impala._create_optimizer(FLAGS, model)
+        optimizer = __Optimizer__.build(FLAGS.optimizer, model.parameters())
         scheduler = Impala._create_scheduler(FLAGS, optimizer)
         learner_state = ImpalaLearnerState(model, optimizer, scheduler)
         return model, learner_state
