@@ -156,8 +156,8 @@ def run(cfg: omegaconf.DictConfig):
         "virtual_batch_size": common.StatMean(),
         "num_gradients": common.StatMean(),
         #
-        "optimizer_steps": common.StatSum(),  # these should be updated by `Agent.step_optimizer()`
-        "model_version": common.StatSum(),
+        "optimizer_steps": common.StatSum(),  # should be updated by `Agent.step_optimizer()`
+        "model_version": common.StatSum(),    # should be updated by `Agent.step_optimizer()`
     }
     for k in info_keys_custom:
         runner_stats[f"end_{k}"] = common.StatMean()
@@ -305,7 +305,7 @@ def run(cfg: omegaconf.DictConfig):
             gradient_stats = accumulator.get_gradient_stats()
             stats["virtual_batch_size"] += gradient_stats["batch_size"]
             stats["num_gradients"] += gradient_stats["num_gradients"]
-            Agent.step_optimizer(learner_state, stats)
+            Agent.step_optimizer(FLAGS, learner_state, stats)
             accumulator.zero_gradients()
         elif not learn_batcher.empty() and accumulator.wants_gradients():
             Agent.compute_gradients(FLAGS, learn_batcher.get(), learner_state, stats)

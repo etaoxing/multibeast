@@ -10,17 +10,17 @@ class EnvBatchState:
     Also tracks ["success", "progress"] at the end of the episode, if those keys are in the info dict.
 
     Args:
-        flags:
+        FLAGS:
           unroll_length: Length of a rollout (i.e., number of steps that an actor has
             to be perform before sending its experience to the learner).
         model:
-        zero_action: a tensor of zeros with shape [`flags.actor_batch_size`, `env.action_space.action_dim`]
+        zero_action: a tensor of zeros with shape [`FLAGS.actor_batch_size`, `env.action_space.action_dim`]
         info_custom_keys: a list of keys to track stats for from the info dict.
     """
 
-    def __init__(self, flags, model, zero_action, with_scaled_reward: bool = False, info_keys_custom: list = None):
-        batch_size = flags.actor_batch_size
-        device = flags.device
+    def __init__(self, FLAGS, model, zero_action, with_scaled_reward: bool = False, info_keys_custom: list = None):
+        batch_size = FLAGS.actor_batch_size
+        device = FLAGS.device
         self.batch_size = batch_size
         self.prev_action = zero_action.clone().to(device)
         self.future = None
@@ -33,7 +33,7 @@ class EnvBatchState:
 
         self.with_scaled_reward = with_scaled_reward
         if with_scaled_reward:
-            self.discounting = flags.discounting
+            self.discounting = FLAGS.model.discounting
             self.weighted_returns = torch.zeros(batch_size)
             self.weighted_returns_rms = RunningMeanStd()
 
@@ -41,7 +41,7 @@ class EnvBatchState:
             info_keys_custom = []
         self.info_keys_custom = info_keys_custom
 
-        self.time_batcher = moolib.Batcher(flags.unroll_length + 1, device)
+        self.time_batcher = moolib.Batcher(FLAGS.unroll_length + 1, device)
 
     def update(self, env_outputs, action, stats):
         self.prev_action = action

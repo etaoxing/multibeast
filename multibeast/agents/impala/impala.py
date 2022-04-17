@@ -62,8 +62,9 @@ class Impala:
         else:
             feature_extractor = None
 
-        action_dist_params = FLAGS.get("action_dist_params", None)
-        policy_params = FLAGS.get("policy_params", dict(cls="PolicyNet"))
+        MFLAGS = FLAGS.model
+        action_dist_params = MFLAGS.get("action_dist_params", None)
+        policy_params = MFLAGS.get("policy_params", dict(cls="PolicyNet"))
 
         model = ImpalaNet(
             observation_space,
@@ -71,7 +72,7 @@ class Impala:
             feature_extractor=feature_extractor,
             action_dist_params=action_dist_params,
             policy_params=policy_params,
-            use_lstm=FLAGS.use_lstm,
+            use_lstm=MFLAGS.use_lstm,
         )
 
         logging.info(f"model: \n{model}")
@@ -87,7 +88,7 @@ class Impala:
     @staticmethod
     def create_agent(FLAGS, observation_space, action_space):
         model = Impala._create_model(FLAGS, observation_space, action_space)
-        optimizer = __Optimizer__.build(FLAGS.optimizer, model.parameters())
+        optimizer = __Optimizer__.build(FLAGS.model.optimizer, model.parameters())
         scheduler = Impala._create_scheduler(FLAGS, optimizer)
         learner_state = ImpalaLearnerState(model, optimizer, scheduler)
         return model, learner_state
@@ -110,7 +111,8 @@ class Impala:
 
     @staticmethod
     def step_optimizer(FLAGS, learner_state, stats):
-        unclipped_grad_norm = nn.utils.clip_grad_norm_(learner_state.model.parameters(), FLAGS.grad_norm_clipping)
+        MFLAGS = FLAGS.model
+        unclipped_grad_norm = nn.utils.clip_grad_norm_(learner_state.model.parameters(), MFLAGS.grad_norm_clipping)
         learner_state.optimizer.step()
         learner_state.scheduler.step()
         learner_state.model_version += 1
@@ -122,6 +124,7 @@ class Impala:
 
     @staticmethod
     def compute_gradients(FLAGS, data, learner_state, stats):
+        MFLAGS = FLAGS.model
         model = learner_state.model
 
         env_outputs = data["env_outputs"]
@@ -143,12 +146,12 @@ class Impala:
         actor_outputs = nest.map(lambda t: t[:-1], actor_outputs)
 
         rewards = env_outputs["reward"]
-        if FLAGS.reward_clip:
-            rewards = torch.clip(rewards, -FLAGS.reward_clip, FLAGS.reward_clip)
+        if MFLAGS.reward_clip:
+            rewards = torch.clip(rewards, -MFLAGS.reward_clip, MFLAGS.reward_clip)
 
         # TODO: reward normalization ?
 
-        discounts = (~env_outputs["done"]).float() * FLAGS.discounting
+        discounts = (~env_outputs["done"]).float() * MFLAGS.discounting
 
         # an attempt at supporting continuous action spaces based on
         # https://github.com/google-research/seed_rl/search?q=continuous&type=commits
@@ -169,18 +172,18 @@ class Impala:
         )
 
         # TODO target entropy adjustment: https://github.com/google-research/seed_rl/blob/66e8890261f09d0355e8bf5f1c5e41968ca9f02b/agents/vtrace/learner.py#L127
-        entropy_loss = FLAGS.entropy_cost * -target_policy_action_dist.entropy().mean()
+        entropy_loss = MFLAGS.entropy_cost * -target_policy_action_dist.entropy().mean()
 
         log_likelihoods = target_action_log_probs  # target_policy_action_dist.log_prob(actions)
         pg_loss = -torch.mean(log_likelihoods * vtrace_returns.pg_advantages.detach())  # policy gradient
 
         baseline_advantages = vtrace_returns.vs - learner_outputs["baseline"]
-        baseline_loss = FLAGS.baseline_cost * (0.5 * torch.mean(baseline_advantages**2))
+        baseline_loss = MFLAGS.baseline_cost * (0.5 * torch.mean(baseline_advantages**2))
 
         # from https://github.com/google-research/seed_rl/blob/66e8890261f09d0355e8bf5f1c5e41968ca9f02b/agents/vtrace/learner.py#L123
         # KL(old_policy|new_policy) loss
         kl = behavior_action_log_probs - target_action_log_probs
-        kl_loss = FLAGS.kl_cost * torch.mean(kl)
+        kl_loss = MFLAGS.kl_cost * torch.mean(kl)
         # TODO: could also use `D.kl_divergence(behavior_policy_action_dist, target_policy_action_dist)`
 
         total_loss = entropy_loss + pg_loss + baseline_loss + kl_loss

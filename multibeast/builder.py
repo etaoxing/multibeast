@@ -62,11 +62,6 @@ def build_distribution(distribution_params):
     return partial(DistributionCls, **params)
 
 
-def build_agent(agent_name):
-    AgentCls = __Agent__.get(agent_name)
-    return AgentCls
-
-
 def build_optimizer(optimizer_params, model_params):
     c, params = parse_params(optimizer_params)
 
@@ -74,6 +69,11 @@ def build_optimizer(optimizer_params, model_params):
 
     OptimizerCls = getattr(torch.optim, c)
     return OptimizerCls(model_params, **params)
+
+
+def build_agent(agent_name):
+    AgentCls = __Agent__.get(agent_name)
+    return AgentCls
 
 
 __MakeEnv__ = Registry("MakeEnv")
@@ -87,6 +87,9 @@ __PolicyNet__.build = build_policy_net
 
 __Distribution__ = Registry("Distribution")
 __Distribution__.build = build_distribution
+
+__Optimizer__ = Registry("Optimizer")
+__Optimizer__.build = build_optimizer
 
 __Agent__ = Registry("Agent")
 __Agent__.build = build_agent

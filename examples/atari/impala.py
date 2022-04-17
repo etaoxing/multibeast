@@ -6,7 +6,7 @@ import tinyspace
 
 # import impala here, otherwise will get:
 # "omegaconf.errors.UnsupportedInterpolationType: Unsupported interpolation type uid"
-from multibeast.agents import impala
+from multibeast.agents import multihydra
 from multibeast.builder import __FeatureExtractor__, __MakeEnv__
 
 from .environment import create_env
@@ -38,7 +38,7 @@ def main(cfg: omegaconf.DictConfig):
     new_flags = omegaconf.OmegaConf.create(new_flags)
     cfg = omegaconf.OmegaConf.merge(new_flags, cfg)
 
-    impala.run(cfg)
+    multihydra.run(cfg)
 
 
 if __name__ == "__main__":
