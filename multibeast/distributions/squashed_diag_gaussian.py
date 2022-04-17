@@ -39,10 +39,9 @@ class SquashedDiagGaussian(D.Distribution):  # aka TanhNormal
     r"""
     from https://github.com/DLR-RM/stable-baselines3/blob/ed308a71be24036744b5ad4af61b083e4fbdf83c/stable_baselines3/common/distributions.py#L195
 
-    Other:
+    Also see:
     - https://github.com/rlworkgroup/garage/blob/c56513f42be9cba2ef5426425a8ad36097e679c2/src/garage/torch/distributions/tanh_normal.py
     - https://github.com/ikostrikov/jaxrl/blob/5e044e1fd080223ef5e71848b9d0f72597f2ab2f/jax_rl/networks/policies.py#L15
-
     """
 
     arg_constraints = D.Normal.arg_constraints
