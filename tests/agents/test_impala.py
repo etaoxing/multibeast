@@ -14,12 +14,13 @@ def _get_input(env, T, B):
         prev_action=prev_action,
         reward=torch.randn((T, B)),
         state=x,
+        done=torch.zeros((T, B), dtype=torch.bool),
     )
     return inputs
 
 
 @pytest.mark.order(1)
-def test_impala_forward_Categorical():
+def test_impala_forward_Categorical(use_lstm=False):
     env = MockEnv(obs_space_type="1d", action_space_cls="discrete")
 
     T, B = 20, 4
@@ -34,9 +35,14 @@ def test_impala_forward_Categorical():
         env.action_space,
         policy_params=policy_params,
         action_dist_params=action_dist_params,
+        use_lstm=use_lstm,
     )
 
-    outputs, core_state = model(inputs)
+    initial_state = model.initial_state(batch_size=B)
+
+    outputs, core_state = model(inputs, core_state=initial_state)
+    if use_lstm:
+        assert len(core_state) == 2
 
     assert outputs["policy_logits"].shape == (T, B, model.num_actions)
     assert outputs["action"].shape == (T, B)
@@ -45,6 +51,11 @@ def test_impala_forward_Categorical():
     # try creating distribution
     action_dist = model.policy.action_dist(outputs["policy_logits"])
     assert action_dist.log_prob(outputs["action"]).shape == (T, B)
+
+
+@pytest.mark.order(2)
+def test_impala_forward_Categorical_use_lstm():
+    test_impala_forward_Categorical(use_lstm=True)
 
 
 @pytest.mark.order(2)
