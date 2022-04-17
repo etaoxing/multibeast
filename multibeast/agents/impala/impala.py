@@ -10,7 +10,7 @@ from moolib.examples.common import nest
 from multibeast.builder import __Agent__, __FeatureExtractor__, __Optimizer__
 
 from .impala_net import ImpalaNet
-from .vtrace import compute_vtrace
+from .vtrace import from_importance_weights
 
 
 @dataclasses.dataclass
@@ -162,13 +162,18 @@ class Impala:
         actions = actor_outputs["action"]
         behavior_action_log_probs = behavior_policy_action_dist.log_prob(actions)
         target_action_log_probs = target_policy_action_dist.log_prob(actions)
-        vtrace_returns = compute_vtrace(
-            learner_outputs,
-            behavior_action_log_probs,
-            target_action_log_probs,
-            discounts,
-            rewards,
-            bootstrap_value,
+
+        log_rhos = target_action_log_probs - behavior_action_log_probs
+        # TODO: put this on cpu? https://github.com/deepmind/scalable_agent/blob/6c0c8a701990fab9053fb338ede9c915c18fa2b1/experiment.py#L374
+        # or move to C++ https://github.com/facebookresearch/minihack/blob/65fc16f0f321b00552ca37db8e5f850cbd369ae5/minihack/agent/polybeast/polybeast_learner.py#L342
+        vtrace_returns = from_importance_weights(
+            log_rhos=log_rhos,
+            discounts=discounts,
+            rewards=rewards,
+            values=learner_outputs["baseline"],
+            bootstrap_value=bootstrap_value,
+            clip_rho_threshold=1.0,
+            clip_pg_rho_threshold=1.0,
         )
 
         # TODO target entropy adjustment: https://github.com/google-research/seed_rl/blob/66e8890261f09d0355e8bf5f1c5e41968ca9f02b/agents/vtrace/learner.py#L127
@@ -182,8 +187,7 @@ class Impala:
 
         # from https://github.com/google-research/seed_rl/blob/66e8890261f09d0355e8bf5f1c5e41968ca9f02b/agents/vtrace/learner.py#L123
         # KL(old_policy|new_policy) loss
-        kl = behavior_action_log_probs - target_action_log_probs
-        kl_loss = MFLAGS.kl_cost * torch.mean(kl)
+        kl_loss = MFLAGS.kl_cost * torch.mean(behavior_action_log_probs - target_action_log_probs)
         # TODO: could also use `D.kl_divergence(behavior_policy_action_dist, target_policy_action_dist)`
 
         total_loss = entropy_loss + pg_loss + baseline_loss + kl_loss

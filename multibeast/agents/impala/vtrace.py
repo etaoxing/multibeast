@@ -134,30 +134,3 @@ def from_importance_weights(
 
     # Make sure no gradients backpropagated through the returned values.
     return VTraceReturns(vs=vs, pg_advantages=pg_advantages)
-
-
-def compute_vtrace(
-    learner_outputs,
-    behavior_action_log_probs,
-    target_action_log_probs,
-    discounts,
-    rewards,
-    bootstrap_value,
-    clip_rho_threshold=1.0,
-    clip_pg_rho_threshold=1.0,
-):
-    values = learner_outputs["baseline"]
-    log_rhos = target_action_log_probs - behavior_action_log_probs
-
-    # TODO: put this on cpu? https://github.com/deepmind/scalable_agent/blob/6c0c8a701990fab9053fb338ede9c915c18fa2b1/experiment.py#L374
-    # or move to C++ https://github.com/facebookresearch/minihack/blob/65fc16f0f321b00552ca37db8e5f850cbd369ae5/minihack/agent/polybeast/polybeast_learner.py#L342
-    vtrace_returns = from_importance_weights(
-        log_rhos=log_rhos,
-        discounts=discounts,
-        rewards=rewards,
-        values=values,
-        bootstrap_value=bootstrap_value,
-        clip_rho_threshold=clip_rho_threshold,
-        clip_pg_rho_threshold=clip_pg_rho_threshold,
-    )
-    return vtrace_returns
