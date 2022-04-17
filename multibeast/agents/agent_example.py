@@ -19,3 +19,10 @@ class AgentExample:
         returns: `None`
         """
         raise NotImplementedError
+
+    @staticmethod
+    def create_stats(FLAGS):
+        r"""This function return a list of strings representing keys of statistics to track.
+        returns: `List[str]`
+        """
+        raise NotImplementedError

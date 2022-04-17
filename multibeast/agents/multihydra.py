@@ -138,7 +138,7 @@ def run(cfg: omegaconf.DictConfig):
 
     learn_batcher = moolib.Batcher(FLAGS.batch_size, FLAGS.device, dim=1)
 
-    agent_stats = Agent.create_stats()
+    agent_stats = Agent.create_stats(FLAGS)
     runner_stats = {
         "SPS": common.StatMean(),
         "env_act_steps": common.StatSum(),

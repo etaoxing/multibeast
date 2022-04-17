@@ -101,6 +101,22 @@ class Impala:
         return model, learner_state
 
     @staticmethod
+    def create_stats(FLAGS):
+        stats_keys = [
+            "entropy_loss",
+            "pg_loss",
+            "baseline_loss",
+            "kl_loss",
+            "total_loss",
+            "unclipped_grad_norm",
+        ]
+
+        stats = {}
+        for k in stats_keys:
+            stats[k] = common.StatMean()
+        return stats
+
+    @staticmethod
     def step_optimizer(FLAGS, learner_state, stats):
         unclipped_grad_norm = nn.utils.clip_grad_norm_(learner_state.model.parameters(), FLAGS.grad_norm_clipping)
         learner_state.optimizer.step()
@@ -115,19 +131,3 @@ class Impala:
     @staticmethod
     def compute_gradients(FLAGS, data, learner_state, stats):
         return vtrace.compute_gradients(FLAGS, data, learner_state, stats)
-
-    @staticmethod
-    def create_stats():
-        stats_keys = [
-            "entropy_loss",
-            "pg_loss",
-            "baseline_loss",
-            "kl_loss",
-            "total_loss",
-            "unclipped_grad_norm",
-        ]
-
-        stats = {}
-        for k in stats_keys:
-            stats[k] = common.StatMean()
-        return stats
