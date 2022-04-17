@@ -18,8 +18,8 @@ class ImpalaNet(nn.Module):
         self,
         observation_space: Space,
         action_space: Space,
-        action_dist_params: dict = None,
-        policy_params: Dict = dict(cls="PolicyNet"),  # noqa: B006
+        action_dist_params: Dict = None,
+        policy_params: Dict = None,
         feature_extractor: nn.Module = None,
         use_lstm: bool = False,
         fc_out_features: int = 256,
@@ -32,7 +32,6 @@ class ImpalaNet(nn.Module):
             action_space,
             action_dist_params,
         )
-        # NOTE: for continuous action spaces, currently only supports actions bound to [-1, 1]
 
         self.feature_extractor = feature_extractor
         self.use_lstm = use_lstm
@@ -53,6 +52,8 @@ class ImpalaNet(nn.Module):
             self.core = nn.LSTM(core_output_size, 256, num_layers=1)
             core_output_size = 256
 
+        if policy_params is None:
+            policy_params = dict(cls="PolicyNet")
         self.policy = __PolicyNet__.build(policy_params, core_output_size, self.num_actions, self.action_dist_params)
         self.baseline = nn.Linear(core_output_size, 1)
 

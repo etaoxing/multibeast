@@ -153,7 +153,7 @@ def compute_vtrace(
 
     # TODO: put this on cpu? https://github.com/deepmind/scalable_agent/blob/6c0c8a701990fab9053fb338ede9c915c18fa2b1/experiment.py#L374
     # or move to C++ https://github.com/facebookresearch/minihack/blob/65fc16f0f321b00552ca37db8e5f850cbd369ae5/minihack/agent/polybeast/polybeast_learner.py#L342
-    vtrace_returns = vtrace.from_importance_weights(
+    vtrace_returns = from_importance_weights(
         log_rhos=log_rhos,
         discounts=discounts,
         rewards=rewards,
@@ -249,8 +249,6 @@ def compute_gradients(FLAGS, data, learner_state, stats):
 
     total_loss = entropy_loss + pg_loss + baseline_loss + kl_loss
     total_loss.backward()
-
-    stats["env_train_steps"] += FLAGS.unroll_length * FLAGS.batch_size
 
     stats["entropy_loss"] += entropy_loss.item()
     stats["pg_loss"] += pg_loss.item()

@@ -3,7 +3,6 @@
 
 # Copyright (c) Facebook, Inc. and its affiliates.
 import copy
-import dataclasses
 import getpass
 import logging
 import os
@@ -11,115 +10,24 @@ import pprint
 import signal
 import socket
 import time
-from typing import Optional
 
 import coolname
 import hydra
 import moolib
 import omegaconf
 import torch
-import torch.nn as nn
 from moolib.examples import common
 from moolib.examples.common import nest, record
 from tinyspace import sample_from_space
 
-from multibeast.builder import __FeatureExtractor__, __MakeEnv__
+from multibeast.builder import __Agent__, __MakeEnv__
 from multibeast.envpool import EnvBatchState, EnvPool
 
-from .impalanet import ImpalaNet
-from ..record_utils import calculate_sps, load_checkpoint, log, save_checkpoint
-from .vtrace import compute_gradients
-
-
-@dataclasses.dataclass
-class LearnerState:
-    model: torch.nn.Module
-    optimizer: torch.optim.Optimizer
-    scheduler: torch.optim.lr_scheduler.LambdaLR
-    model_version: int = 0
-    num_previous_leaders: int = 0
-    train_time: float = 0
-    last_checkpoint: float = 0
-    last_checkpoint_history: float = 0
-    global_stats: Optional[dict] = None
-
-    def save(self):
-        r = dataclasses.asdict(self)
-        r["model"] = self.model.state_dict()
-        r["optimizer"] = self.optimizer.state_dict()
-        r["scheduler"] = self.scheduler.state_dict()
-        return r
-
-    def load(self, state):
-        for k, v in state.items():
-            if k not in ("model", "optimizer", "scheduler", "global_stats"):
-                setattr(self, k, v)
-        self.model_version = state["model_version"]
-        self.model.load_state_dict(state["model"])
-        self.optimizer.load_state_dict(state["optimizer"])
-        self.scheduler.load_state_dict(state["scheduler"])
-
-        for k, v in state["global_stats"].items():
-            if k in self.global_stats:
-                self.global_stats[k] = type(self.global_stats[k])(**v)
-
-
-def create_model(observation_space, action_space):
-    if FLAGS.feature_extractor:
-        feature_extractor = __FeatureExtractor__.build(
-            FLAGS.feature_extractor,
-            observation_space,
-            action_space,
-        )
-    else:
-        feature_extractor = None
-
-    action_dist_params = FLAGS.get("action_dist_params", None)
-    policy_params = FLAGS.get("policy_params", dict(cls="PolicyNet"))
-
-    model = ImpalaNet(
-        observation_space,
-        action_space,
-        feature_extractor=feature_extractor,
-        action_dist_params=action_dist_params,
-        policy_params=policy_params,
-        use_lstm=FLAGS.use_lstm,
-    )
-
-    logging.info(f"model: \n{model}")
-
-    return model
-
-
-def create_optimizer(model):
-    return torch.optim.Adam(
-        model.parameters(),
-        lr=FLAGS.optimizer.learning_rate,
-        betas=(FLAGS.optimizer.beta_1, FLAGS.optimizer.beta_2),
-        eps=FLAGS.optimizer.epsilon,
-    )
-
-
-def create_scheduler(optimizer):
-    factor = FLAGS.unroll_length * FLAGS.virtual_batch_size / FLAGS.total_steps
-    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda epoch: max(1 - epoch * factor, 0))
-    return scheduler
-
-
-def step_optimizer(learner_state, stats):
-    unclipped_grad_norm = nn.utils.clip_grad_norm_(learner_state.model.parameters(), FLAGS.grad_norm_clipping)
-    learner_state.optimizer.step()
-    learner_state.scheduler.step()
-    learner_state.model_version += 1
-
-    stats["unclipped_grad_norm"] += unclipped_grad_norm.item()
-    stats["optimizer_steps"] += 1
-    stats["model_version"] += 1
-
+from .record_utils import calculate_sps, load_checkpoint, log, save_checkpoint
 
 SLUG = None
 # need to cache this, otherwise uid will differ b/w what shows up in logger and hydra config
-# when calling impala.run() from a different file with @hydra.main() decorator.
+# when calling multihydra.run() from a different file with @hydra.main() decorator.
 def uid():
     global SLUG
     if SLUG is None:
@@ -171,17 +79,15 @@ def run(cfg: omegaconf.DictConfig):
     dummy_env = create_env_fn()  # TODO: pass an option `dummy_env=True`, so that only the desired attributes can be accessed
     observation_space = dummy_env.observation_space
     action_space = dummy_env.action_space
-    info_keys_custom = getattr(dummy_env, "info_keys_custom", None)
+    info_keys_custom = getattr(dummy_env, "info_keys_custom", [])
     dummy_env.close()
     del dummy_env
     logging.info(f"observation_space: {observation_space}")
     logging.info(f"action_space: {action_space}")
 
-    model = create_model(observation_space, action_space)
+    Agent = __Agent__.get(FLAGS.get("agent", "Impala"))
+    model, learner_state = Agent.create_agent(FLAGS, observation_space, action_space)
     model.to(device=FLAGS.device)
-    optimizer = create_optimizer(model)
-    scheduler = create_scheduler(optimizer)
-    learner_state = LearnerState(model, optimizer, scheduler)
 
     model_numel = sum(p.numel() for p in model.parameters() if p.requires_grad)
     logging.info("Number of model parameters: %i", model_numel)
@@ -232,11 +138,11 @@ def run(cfg: omegaconf.DictConfig):
 
     learn_batcher = moolib.Batcher(FLAGS.batch_size, FLAGS.device, dim=1)
 
-    stats = {
+    agent_stats = Agent.create_stats()
+    runner_stats = {
         "SPS": common.StatMean(),
         "env_act_steps": common.StatSum(),
         "env_train_steps": common.StatSum(),
-        "optimizer_steps": common.StatSum(),
         "steps_done": common.StatSum(),
         "episodes_done": common.StatSum(),
         #
@@ -247,24 +153,19 @@ def run(cfg: omegaconf.DictConfig):
         "end_episode_success": common.StatMean(),
         "end_episode_progress": common.StatMean(),
         #
-        "unclipped_grad_norm": common.StatMean(),
-        "model_version": common.StatSum(),
         "virtual_batch_size": common.StatMean(),
         "num_gradients": common.StatMean(),
         #
-        "entropy_loss": common.StatMean(),
-        "pg_loss": common.StatMean(),
-        "baseline_loss": common.StatMean(),
-        "kl_loss": common.StatMean(),
-        "total_loss": common.StatMean(),
+        "optimizer_steps": common.StatSum(),  # these should be updated by `Agent.step_optimizer()`
+        "model_version": common.StatSum(),
     }
-    if info_keys_custom is not None:
-        for k in info_keys_custom:
-            stats[f"end_{k}"] = common.StatMean()
+    for k in info_keys_custom:
+        runner_stats[f"end_{k}"] = common.StatMean()
+
+    stats = dict(**runner_stats, **agent_stats)
     learner_state.global_stats = copy.deepcopy(stats)
 
     checkpoint_path = os.path.join(FLAGS.savedir, "checkpoint.tar")
-
     if os.path.exists(checkpoint_path):
         logging.info("Loading checkpoint: %s" % checkpoint_path)
         load_checkpoint(checkpoint_path, learner_state)
@@ -404,10 +305,11 @@ def run(cfg: omegaconf.DictConfig):
             gradient_stats = accumulator.get_gradient_stats()
             stats["virtual_batch_size"] += gradient_stats["batch_size"]
             stats["num_gradients"] += gradient_stats["num_gradients"]
-            step_optimizer(learner_state, stats)
+            Agent.step_optimizer(learner_state, stats)
             accumulator.zero_gradients()
         elif not learn_batcher.empty() and accumulator.wants_gradients():
-            compute_gradients(FLAGS, learn_batcher.get(), learner_state, stats)
+            Agent.compute_gradients(FLAGS, learn_batcher.get(), learner_state, stats)
+            stats["env_train_steps"] += FLAGS.unroll_length * FLAGS.batch_size
             accumulator.reduce_gradients(FLAGS.batch_size)
         else:
             if accumulator.wants_gradients():
@@ -471,6 +373,7 @@ def main(cfg: omegaconf.DictConfig):
 
 if __name__ == "__main__":
     # moolib.set_log_level("debug")
+    # moolib.set_max_threads(1)
     main()
 
 # see https://github.com/facebookresearch/moolib/tree/main/examples#fully-fledged-vtrace-agent
