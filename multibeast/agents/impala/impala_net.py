@@ -10,7 +10,7 @@ from moolib.examples.common import nest
 from tinyspace import Space, sample_from_space
 
 from multibeast.builder import __PolicyNet__
-from multibeast.utils import get_action_params
+from multibeast.agents import get_action_params
 
 
 class ImpalaNet(nn.Module):

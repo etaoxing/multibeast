@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from multibeast.builder import __Distribution__, __FeatureExtractor__, __MakeEnv__, __PolicyNet__
-from multibeast.utils import get_action_params
+from multibeast.agents import get_action_params
 
 from .mock_env import MockEnv
 
