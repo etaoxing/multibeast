@@ -1,0 +1,68 @@
+defaults:
+- override hydra/job_logging: colorlog
+- override hydra/hydra_logging: colorlog
+- override hydra/launcher: submitit_slurm
+
+hydra:
+  job_logging:
+    formatters:
+      simple:
+        format: ${log_fmt}
+  run:
+    dir: "${localdir}"
+
+connect: 127.0.0.1:4431
+device: cuda:0
+local_name: "${uid:}"
+log_fmt: "[%(levelname)s:${local_name} %(module)s:%(lineno)d %(asctime)s] %(message)s"
+log_interval: 10
+
+wandb: false
+entity: null
+project: project
+group: group
+tags: null
+notes: null
+# Savedir is used for storing the checkpoint(s),
+# including flags and any global settings/stats for the training
+# localdir (which is a subdirectory of savedir) should be used
+# for storing logs and anything local to each instance
+savedir: "outputs/${oc.env:USER}/${project}/${group}"
+localdir: "${savedir}/peers/${local_name}"
+
+env:
+  domain_name: "cheetah"
+  task_name: "run"
+  frame_skip: 1  # action_repeat
+  from_pixels: true
+  frame_stack: 3
+  height: 84
+  width: 84
+  visualize_reward: false
+  discretization: null
+
+warmup: 0
+batch_size: 32
+num_actor_processes: 64
+actor_batch_size: 32
+num_actor_batches: 2
+virtual_batch_size: 32
+
+total_steps: 5e5
+unroll_length: 20
+
+use_lstm: false
+
+baseline_cost: 0.5
+discounting: 0.99
+entropy_cost: 0.0006
+grad_norm_clipping: 40
+optimizer:
+  learning_rate: 0.0006
+  beta_1: 0.9  # PyTorch default: 0.9
+  beta_2: 0.999  # PyTorch default: 0.999
+  epsilon: 1e-8  # PyTorch default: 1e-08
+reward_clip: 1.0
+
+checkpoint_interval: 600
+checkpoint_history_interval: 3600
