@@ -1,4 +1,3 @@
-import pytest
 import torch
 
 from multibeast.builder import __Distribution__, __FeatureExtractor__, __MakeEnv__, __PolicyNet__

@@ -98,5 +98,5 @@ class SquashedDiagGaussian(D.Distribution):  # aka TanhNormal
         # entropy needs to be estimated using -log_prob.mean()
         # return None
 
-        # just return the underling gaussian's entropy
+        # just return the underlying gaussian's entropy
         return self.gaussian.entropy()
