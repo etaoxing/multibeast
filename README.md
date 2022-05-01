@@ -1,4 +1,33 @@
+<!-- start about -->
+
+[pypi-url]: https://pypi.python.org/pypi/multibeast
+[license-badge]: https://img.shields.io/pypi/l/multibeast.svg
+[version-badge]: https://img.shields.io/pypi/v/multibeast.svg
+[pyversion-badge]: https://img.shields.io/pypi/pyversions/multibeast.svg
+
+[tests-badge]: https://github.com/etaoxing/multibeast/actions/workflows/tests.yml/badge.svg
+[tests-url]: https://github.com/etaoxing/multibeast/actions/workflows/tests.yml
+
+[docs-badge]: https://img.shields.io/readthedocs/multibeast.svg
+[docs-url]: https://multibeast.readthedocs.io/
+
 # 🦬 MultiBeast
+
+[![license][license-badge]][pypi-url]
+[![version][version-badge]][pypi-url]
+[![pyversion][pyversion-badge]][pypi-url]
+[![tests][tests-badge]][tests-url]
+[![docs][docs-badge]][docs-url]
+
+A research codebase for asynchronous RL.
+
+<!-- end about -->
+
+---
+
+<!-- start quickstart -->
+
+# Quickstart
 
 `pip install multibeast` provides:
 
@@ -8,7 +37,13 @@
 
 🐃 An avoidance of inheritance & complexity, to facilitate fast research iteration. Core implementation details are kept as simple and self-contained as possible, in one folder.
 
+<!-- end quickstart -->
+
+<!-- start example -->
+
 See [`examples/`](examples/) on how to use `multibeast` in your code.
+
+<!-- end example -->
 
 # Setup from source
 

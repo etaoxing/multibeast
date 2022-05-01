@@ -4,8 +4,9 @@ import subprocess
 from setuptools import find_packages, setup
 
 NAME = "multibeast"
-__version__ = "0.0.1"
+AUTHOR = f"{NAME} contributors"
 URL = "https://github.com/etaoxing/multibeast"
+__version__ = "0.0.1"
 
 install_requires = [
     "torch>=1.9.1",
@@ -31,29 +32,37 @@ extras_deps = {
         "flake8>=3.7",
         # Find likely bugs
         "flake8-bugbear>=20.1",
+        # Docstrings style,
+        "flake8-docstrings>=1.6.0",
         # Run tests and coverage
         "pytest>=5.3",
         "pytest-benchmark>=3.1.0",
         "pytest-order>=1.0.1",
-        # "pytest-cov",
-        # "pytest-env",
+        "pytest-cov",
         "pytest-xdist",
-        # # Type check
-        # "pytype",
+        # Type check
+        "pyright",
         # Sort imports
         "isort>=5.0",
     ],
     "docs": [
-        "sphinx==4.0.2",
-        # "sphinx-autobuild",
-        "sphinx-rtd-theme==1.0.0",
-        "myst-parser==0.15.1",
+        "sphinx==4.4.0",
+        "sphinx-autobuild",
+        "myst-parser",
         # # Jupyter notebooks
-        # "nbsphinx==0.8.6",
+        # "nbsphinx",
         # For spelling
-        "sphinxcontrib.spelling",
+        "sphinxcontrib-spelling",
         # Type hints support
         "sphinx-autodoc-typehints",
+        # Extras
+        "sphinx-design",
+        "sphinx-copybutton",
+        "sphinx-inline-tabs",
+        "sphinxcontrib-trio",
+        "sphinxext-opengraph",
+        # Theme
+        "furo",
     ],
 }
 
@@ -64,22 +73,24 @@ if __name__ == "__main__":
     with open("README.md") as f:
         long_description = f.read()
     cwd = os.path.dirname(os.path.abspath(__file__))
-    sha = "Unknown"
+    sha = "unknown"
     version = __version__
 
-    try:
-        sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=cwd).decode("ascii").strip()
-    except subprocess.CalledProcessError:
-        pass
-
-    if sha != "Unknown" and not os.getenv("RELEASE_BUILD"):
-        version += "+" + sha[:7]
-    print("Building wheel {}-{}".format(NAME, version))
+    if os.getenv("RELEASE_BUILD") or (os.getenv("READTHEDOCS") and os.getenv("READTHEDOCS_VERSION_TYPE") == "tag"):
+        sha = version
+    else:
+        try:
+            sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=cwd).decode("ascii").strip()
+        except subprocess.CalledProcessError:
+            pass
+        version += ".dev+" + sha[:7]
 
     version_path = os.path.join(cwd, NAME, "version.py")
     with open(version_path, "w") as f:
-        f.write("__version__ = '{}'\n".format(version))
-        f.write("git_version = {}\n".format(repr(sha)))
+        f.write(f'__version__ = "{version}"\n')
+        f.write(f'commit = "{sha}"\n')
+
+    print(f"Building package {NAME}-{version}")
 
     setup(
         name=NAME,
