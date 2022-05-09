@@ -12,10 +12,67 @@ on:
   workflow_dispatch:
 
 jobs:
-
   testing:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      # explicit include-based build matrix, of known valid options
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python-version: 3.7
+            torch-version: 1.9.1
+            torchvision-version: 0.10.1
+
+    env:
+      USE_CUDA: 0  # for moolib
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install setuptools wheel
+
+      - name: Install PyTorch ${{ matrix.torch-version }}+cpu
+        run: |
+          pip install torch==${{ matrix.torch-version}}+cpu \
+            torchvision==${{ matrix.torchvision-version}}+cpu \
+            -f https://download.pytorch.org/whl/torch_stable.html
+
+      - name: Install main package
+        run: |
+          pip install -v -e .[all]
+
+      - name: Test
+        run: |
+          pytest --cov -v tests/
+
+      - name: Lint
+        run: flake8 .
+
+      - name: Style
+        run: |
+          isort --check .
+          black --check .
+
+      - name: Docs
+        run: cd docs && make clean && make html
+
+  testing-cuda:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    needs: [testing]
 
     strategy:
       fail-fast: false
@@ -26,12 +83,12 @@ jobs:
           - os: ubuntu-20.04
             gcc: 10
             cuda: 11.1
-            cudnn: 8.0.5
-            cudnn-url: "https://developer.download.nvidia.com/compute/redist/cudnn/v8.0.5/cudnn-11.1-linux-x64-v8.0.5.39.tgz"
             cuda-version: cu111
             python-version: 3.7
             torch-version: 1.9.1
             torchvision-version: 0.10.1
+            cudnn: 8.0.5
+            cudnn-url: "https://developer.download.nvidia.com/compute/redist/cudnn/v8.0.5/cudnn-11.1-linux-x64-v8.0.5.39.tgz"
 
     steps:
       - uses: actions/checkout@v3
@@ -77,19 +134,8 @@ jobs:
 
       - name: Install main package
         run: |
-          pip install -v -e .[all]
+          pip install -v -e .[tests]
 
       - name: Test
         run: |
           pytest --cov -v tests/
-
-      - name: Lint
-        run: flake8 .
-
-      - name: Style
-        run: |
-          isort --check .
-          black --check .
-
-      - name: Docs
-        run: cd docs && make clean && make html
