@@ -46,6 +46,8 @@ else:
         # enforce a strict pytorch version
         install_requires[0] = "==".join(install_requires[0].split(">="))
     else:
+        # support pip installing in editable mode
+        # otherwise top-level moolib module will not be found
         install_requires += [
             f"moolib @ file://{cwd}/third_party/moolib#egg=moolib",
         ]
