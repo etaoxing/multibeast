@@ -20,8 +20,9 @@ jobs:
         include:
           # 20.04 supports CUDA 11.0+
           - os: ubuntu-20.04
-            cuda: 11.1
             gcc: 10
+            cuda: 11.1
+            cuda-version: cu111
             python-version: 3.7
             torch-version: 1.9.1
             torchvision-version: 0.10.1
@@ -52,9 +53,8 @@ jobs:
 
       - name: Install PyTorch ${{ matrix.torch-version }}, CUDA ${{ matrix.cuda }}
         run: |
-          pip install torch==${{ matrix.torch-version}} \
-            torchvision==${{ matrix.torchvision-version}} \
-            cudatoolkit=${{ matrix.cuda }} \
+          pip install torch==${{ matrix.torch-version}}+${{ matrix.cuda-version}} \
+            torchvision==${{ matrix.torchvision-version}}+${{ matrix.cuda-version}} \
             -f https://download.pytorch.org/whl/torch_stable.html
 
       - name: Install dependencies
