@@ -14,25 +14,48 @@ jobs:
     timeout-minutes: 15
 
     strategy:
+      fail-fast: false
+      # explicit include-based build matrix, of known valid options
       matrix:
-        os: [ubuntu-latest]
-        python-version: [3.7]
-        torch-version: [1.9.1]
         include:
-          - torch-version: 1.9.1
+          # 20.04 supports CUDA 11.0+
+          - os: ubuntu-20.04
+            cuda: 11.1
+            gcc: 10
+            python-version: 3.7
+            torch-version: 1.9.1
             torchvision-version: 0.10.1
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install CUDA
+        env:
+          cuda: ${{ matrix.cuda }}
+        run: .github/action-scripts/install_cuda_ubuntu.shh
+        shell: bash
+
+      # Specify the correct host compilers
+      - name: Install/Select gcc and g++ 
+        run: |
+          sudo apt-get install -y gcc-${{ matrix.gcc }} g++-${{ matrix.gcc }}
+          echo "CC=/usr/bin/gcc-${{ matrix.gcc }}" >> $GITHUB_ENV
+          echo "CXX=/usr/bin/g++-${{ matrix.gcc }}" >> $GITHUB_ENV
+          echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}" >> $GITHUB_ENV
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install PyTorch ${{ matrix.torch-version }}+cpu
+      - name: Install PyTorch ${{ matrix.torch-version }}, CUDA ${{ matrix.cuda }}
         run: |
-          pip install torch==${{ matrix.torch-version}}+cpu torchvision==${{ matrix.torchvision-version}}+cpu -f https://download.pytorch.org/whl/torch_stable.html
+          pip install torch==${{ matrix.torch-version}} \
+            torchvision==${{ matrix.torchvision-version}} \
+            cudatoolkit=${{ matrix.cuda }} \
+            -f https://download.pytorch.org/whl/torch_stable.html
 
       - name: Install dependencies
         run: |

@@ -47,7 +47,7 @@ See [`examples/`](examples/) on how to use `multibeast` in your code.
 
 # Setup from source
 
-## Install moolib
+## [optional] Install moolib manually
 
 ```bash
 # Setup conda env
@@ -86,7 +86,7 @@ cd $REPO_PATH
 # then go back and install moolib
 ```
 
-If you run into the following error, then try cloning `moolib/third_party/` submodule repos first:
+If you run into the following error, then try cloning `moolib/third_party/` submodule repos first by running `git submodule update --init --recursive`:
 ```bash
 CMake Error at CMakeLists.txt:51 (pybind11_add_module):
   Unknown CMake command "pybind11_add_module".
@@ -154,6 +154,8 @@ Aborted (core dumped)
 ## Install multibeast
 
 ```bash
+git clone https://github.com/etaoxing/multibeast.git
+git submodule update --init --recursive  # can skip if moolib is installed manually
 pip install -e .
 ```
 
