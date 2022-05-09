@@ -1,6 +1,5 @@
 import dmc2gym
 import gym
-import numpy as np
 
 from .env_wrappers import DiscretizeEnvWrapper, SinglePrecisionWrapper
 

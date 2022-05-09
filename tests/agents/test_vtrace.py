@@ -18,7 +18,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """Tests for V-trace.
+
 For details and theory see:
 "IMPALA: Scalable Distributed Deep-RL with
 Importance Weighted Actor-Learner Architectures"

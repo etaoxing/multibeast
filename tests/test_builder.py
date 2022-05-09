@@ -21,7 +21,7 @@ def test_MakeEnv_build():
 
 def test_FeatureExtractor_build():
     @__FeatureExtractor__.register()
-    class MockModule:  # noqa: B903
+    class MockModule:
         def __init__(self, observation_space, action_space, n_layers=3):
             self.n_layers = n_layers
 
@@ -36,7 +36,7 @@ def test_FeatureExtractor_build():
 
 def test_PolicyNet_build():
     @__PolicyNet__.register()
-    class MockModule:  # noqa: B903
+    class MockModule:
         def __init__(self, feature_dim, action_dim, action_dist_params, n_layers=3):
             self.n_layers = n_layers
 

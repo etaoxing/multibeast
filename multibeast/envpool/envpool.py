@@ -10,7 +10,9 @@ from .envstepper import EnvStepper
 
 
 class EnvPool:
-    r"""The class maintains `num_batches` batches of environments, with `batch_size` environments each.
+    r"""A wrapper class to manage a pool of environments.
+
+    The class maintains `num_batches` batches of environments, with `batch_size` environments each.
     This means the batches can be stepped through alternately, for increased efficiency
     (cf "double-buffering"), and the whole `EnvPool` uses ``num_process` to run these environments.
 
@@ -52,8 +54,7 @@ class EnvPool:
         return env_stepper
 
     def step(self, batch_index: int, action: torch.Tensor) -> "asyncio.Future":
-        r"""
-        Step through a batch of envs.
+        r"""Step through a batch of envs.
 
         Args:
             batch_index: index of the batch of envs are we stepping.

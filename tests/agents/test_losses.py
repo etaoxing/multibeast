@@ -71,7 +71,7 @@ def test_losses_categorical(test_entropy=True, test_kl=True, test_pg=True):
         behavior_action_log_probs = behavior_policy_action_dist.log_prob(actions)
         target_action_log_probs = target_policy_action_dist.log_prob(actions)
         kl = behavior_action_log_probs - target_action_log_probs
-        kl_loss = torch.mean(kl)
+        kl_loss = torch.mean(kl)  # noqa
 
 
 def test_losses_tanhnormal(test_entropy=True):

@@ -3,7 +3,6 @@ import os
 import hydra
 import omegaconf
 import tinyspace
-import torch
 import torch.nn as nn
 
 from multibeast.agents import impala

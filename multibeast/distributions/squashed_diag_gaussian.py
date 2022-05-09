@@ -5,9 +5,8 @@ from ..builder import __Distribution__
 
 
 class TanhBijector(object):
-    """
-    Bijective transformation of a probability distribution
-    using a squashing function (tanh)
+    """Bijective transformation of a probability distribution using a squashing function (tanh).
+
     TODO: use Pyro instead (https://pyro.ai/)
     """
 
@@ -20,8 +19,8 @@ class TanhBijector(object):
 
     @staticmethod
     def atanh(x: torch.Tensor) -> torch.Tensor:
-        """
-        Inverse of Tanh
+        """Inverse of Tanh.
+
         Taken from Pyro: https://github.com/pyro-ppl/pyro
         0.5 * torch.log((1 + x ) / (1 - x))
         """
@@ -35,8 +34,9 @@ class TanhBijector(object):
 
 
 @__Distribution__.register()
-class SquashedDiagGaussian(D.Distribution):  # aka TanhNormal
-    r"""
+class SquashedDiagGaussian(D.Distribution):
+    r"""Also called a TanhNormal distribution.
+
     from https://github.com/DLR-RM/stable-baselines3/blob/ed308a71be24036744b5ad4af61b083e4fbdf83c/stable_baselines3/common/distributions.py#L195
 
     Also see:
@@ -90,7 +90,7 @@ class SquashedDiagGaussian(D.Distribution):  # aka TanhNormal
         return torch.tanh(sampled)
 
     def mode(self):
-        r"""Deterministically returns the most likely sample from the distribution"""
+        r"""Deterministically returns the most likely sample from the distribution."""
         return torch.tanh(self.gaussian.mean)
 
     def entropy(self):

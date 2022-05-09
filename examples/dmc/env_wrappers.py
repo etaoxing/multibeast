@@ -7,7 +7,8 @@ class DiscretizeEnvWrapper(gym.Env):
     """Wrapper for discretizing actions."""
 
     def __init__(self, env, n_actions_per_dim, discretization="lin", action_ratio=None):
-        """ "Discretize actions.
+        """Discretize actions.
+
         Args:
           env: Environment to be wrapped.
           n_actions_per_dim: The number of buckets per action dimension.
@@ -17,7 +18,6 @@ class DiscretizeEnvWrapper(gym.Env):
           action_ratio: The ratio of the highest and lowest positive action
             for logarithim discretization.
         """
-
         self.env = env
         assert len(env.action_space.shape) == 1
         dim_action = env.action_space.shape[0]
@@ -60,6 +60,7 @@ class SinglePrecisionWrapper(gym.Wrapper):
 
     def __init__(self, env):
         """Initialize the wrapper.
+
         Args:
           env: MujocoEnv to be wrapped.
         """

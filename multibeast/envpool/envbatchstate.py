@@ -6,7 +6,8 @@ from moolib.examples.common import RunningMeanStd
 
 
 class EnvBatchState:
-    r"""
+    r"""Holds state for a batch of environments.
+
     Also tracks ["success", "progress"] at the end of the episode, if those keys are in the info dict.
 
     Args:

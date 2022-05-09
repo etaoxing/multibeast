@@ -8,9 +8,10 @@ from tinyspace import collate_obs
 
 
 class CloudpickleWrapper:
-    """
-    Uses cloudpickle to serialize contents (otherwise multiprocessing tries to use pickle)
-    :param var: the variable you wish to wrap for pickling with cloudpickle
+    """Uses cloudpickle to serialize contents (otherwise multiprocessing tries to use pickle).
+
+    Args:
+        var: the variable you wish to wrap for pickling with cloudpickle
     """
 
     def __init__(self, var: Any):
@@ -91,7 +92,9 @@ class EnvStepperFuture:
 
 
 class EnvStepper:
-    r"""This class is based on stable_baselines3.SubprocVecEnv, and supports running a pool of
+    r"""Steps a batch of environments.
+
+    This class is based on stable_baselines3.SubprocVecEnv, and supports running a pool of
     unbatched CPU-based environments.
 
     Uses multiprocessing.Pipe instead of multiprocessing.SharedMemory, to support environments

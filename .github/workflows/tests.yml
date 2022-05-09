@@ -79,14 +79,13 @@ jobs:
       # explicit include-based build matrix, of known valid options
       matrix:
         include:
-          # 20.04 supports CUDA 11.0+
           - os: ubuntu-20.04
-            gcc: 10
-            cuda: 11.1
-            cuda-version: cu111
             python-version: 3.7
             torch-version: 1.9.1
             torchvision-version: 0.10.1
+            gcc: 10
+            cuda: 11.1
+            cuda-version: cu111
             cudnn: 8.0.5
             cudnn-url: "https://developer.download.nvidia.com/compute/redist/cudnn/v8.0.5/cudnn-11.1-linux-x64-v8.0.5.39.tgz"
 

@@ -21,7 +21,7 @@ import gym
 
 moolib_atari_dir = os.path.join(os.path.dirname(__file__), "../../third_party/moolib/examples/atari/")
 sys.path.append(moolib_atari_dir)
-from atari_preprocessing import AtariPreprocessing
+from atari_preprocessing import AtariPreprocessing  # noqa
 
 
 def create_env(env_flags):

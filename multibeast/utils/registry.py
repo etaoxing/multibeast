@@ -1,5 +1,6 @@
 # from https://github.com/facebookresearch/fvcore/blob/279b7d093aa078847fe13fefcc2968280abe5297/fvcore/common/registry.py
 # following detectron2 pattern
+# flake8: noqa
 
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 # pyre-ignore-all-errors[2,3]

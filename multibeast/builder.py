@@ -19,6 +19,7 @@ def parse_params(params):
 
 def build_make_env(make_env_name, make_env_params) -> Callable:
     r"""This function gets a function in the registry, which can be called to make an environment.
+
     Example:
         ```python
         from multibeast.builder import __MakeEnv__
@@ -51,7 +52,7 @@ def build_policy_net(policy_params, *args):
 
 
 def build_distribution(distribution_params):
-    r"""Returns a wrapped constructor for a torch.Distribution"""
+    r"""Returns a wrapped constructor for a torch.Distribution."""
     c, params = parse_params(distribution_params)
     try:
         # import module to load register() calls

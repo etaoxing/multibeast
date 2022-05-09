@@ -38,7 +38,7 @@ def uid():
 omegaconf.OmegaConf.register_new_resolver("uid", uid, use_cache=True)
 
 
-def run(cfg: omegaconf.DictConfig):
+def run(cfg: omegaconf.DictConfig):  # noqa: C901
     global FLAGS
     FLAGS = cfg
 
