@@ -26,6 +26,8 @@ jobs:
           - os: ubuntu-20.04
             gcc: 10
             cuda: 11.1
+            cudnn: 8.0.5
+            cudnn-url: "https://developer.download.nvidia.com/compute/redist/cudnn/v8.0.5/cudnn-11.1-linux-x64-v8.0.5.39.tgz"
             cuda-version: cu111
             python-version: 3.7
             torch-version: 1.9.1
@@ -36,10 +38,17 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install CUDA
+      - name: Install CUDA ${{ matrix.cuda }}
         env:
           cuda: ${{ matrix.cuda }}
         run: .github/action-scripts/install_cuda_ubuntu.sh
+        shell: bash
+
+      - name: Install CuDNN ${{ matrix.cudnn }}
+        run: |
+          curl -LO ${{ matrix.cudnn-url }}
+          sudo tar -xvf cudnn-${{ matrix.cuda }}* --strip-components=1 -C $CUDA_PATH
+          sudo chmod a+r ${CUDA_PATH}/lib64/libcudnn*
         shell: bash
 
       # Specify the correct host compilers
