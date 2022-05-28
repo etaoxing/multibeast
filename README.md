@@ -11,6 +11,9 @@
 [docs-badge]: https://img.shields.io/readthedocs/multibeast.svg
 [docs-url]: https://multibeast.readthedocs.io/
 
+[contributing-image]: https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat
+[contributing-url]: https://github.com/etaoxing/multibeast/blob/master/CONTRIBUTING.md
+
 # 🦬 MultiBeast
 
 [![license][license-badge]][pypi-url]
@@ -18,6 +21,7 @@
 [![pyversion][pyversion-badge]][pypi-url]
 [![tests][tests-badge]][tests-url]
 [![docs][docs-badge]][docs-url]
+[![contributing][contributing-image]][contributing-url]
 
 A research codebase for asynchronous RL.
 
@@ -31,7 +35,7 @@ A research codebase for asynchronous RL.
 
 `pip install multibeast` provides:
 
-🐄 Asynchronous, distributed RL algorithms based on the IMPALA implementation in [moolib](https://github.com/facebookresearch/moolib), the successor to [`torchbeast`](https://github.com/facebookresearch/torchbeast).
+🐄 Asynchronous, distributed RL algorithms based on the IMPALA implementation in [`moolib`](https://github.com/facebookresearch/moolib), the successor to [`torchbeast`](https://github.com/facebookresearch/torchbeast).
 
 🐂 Training results tracked and available on wandb, with hydra config files, for reproducibility.
 
