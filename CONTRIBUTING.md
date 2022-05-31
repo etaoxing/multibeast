@@ -34,7 +34,7 @@ Run linting, style formatting, and tests.
 flake8 .
 isort .
 black .
-pytest -v -rP --forked --cov tests/
+pytest tests/ -v -rP --forked --cov
 ```
 
 Document your code, following a [looser version](https://drake.mit.edu/styleguide/pyguide.html) of Google style docstrings.
